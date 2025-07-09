@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import './GuestLanding.css'
-import { useNavigate, Link } from 'react-router-dom'
-import api from '../api'
+import { Link } from 'react-router-dom'
+
 
 export default function GuestLanding() {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedService, setSelectedService] = useState('')
 
     useEffect(() => {
-        // Set minimum date to today
+
         const pickupDateElement = document.getElementById('pickupDate')
         if (pickupDateElement) {
             pickupDateElement.min = new Date().toISOString().split('T')[0]
