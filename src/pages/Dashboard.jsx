@@ -3,6 +3,9 @@ import api from '../api'
 
 const Dashboard = () => {
     const [orders, setOrders] = useState([])
+    const [services, setServices] = useState([])
+    const [showForm, setShowForm] = useState(false)
+    const [form, setForm] = useState({ service_id: '', quantity: 1, note: '' })
     const [statusFilter, setStatusFilter] = useState('All')
     const [logs, setLogs] = useState([])
     const [logOrderId, setLogOrderId] = useState(null)
@@ -19,7 +22,6 @@ const Dashboard = () => {
                 statusFilter === 'All'
                     ? res.data.data.data || []
                     : res.data.data || []
-
             setOrders(orderList)
         } catch (error) {
             console.error('Error fetching orders:', error)
@@ -30,7 +32,31 @@ const Dashboard = () => {
 
     useEffect(() => {
         fetchOrders()
+        api.get('/services').then(res => setServices(res.data.data || []))
     }, [fetchOrders])
+
+    const toggleForm = () => setShowForm(!showForm)
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target
+        setForm(prev => ({ ...prev, [name]: value }))
+    }
+
+    const createOrder = async (e) => {
+        e.preventDefault()
+        try {
+            await api.post('/orders', form)
+            alert('Order created!')
+            setShowForm(false)
+            fetchOrders()
+        } catch (err) {
+            console.error(err)
+            alert('Failed to create order')
+        }
+    }
+
+    const selectedService = services.find(s => s.id === parseInt(form.service_id))
+    const totalPrice = selectedService ? selectedService.price * form.quantity : 0
 
     const cancelOrder = async (id) => {
         if (!window.confirm('Cancel this order?')) return
@@ -45,57 +71,78 @@ const Dashboard = () => {
     const updateOrder = async (id) => {
         if (!window.confirm('Mark order as Completed?')) return
         try {
-            await api.put(`/orders/${id}/update`, { status: 'Completed' })
+            await api.put(`/orders/${id}/status`, { status: 'Completed' })
             fetchOrders()
         } catch (error) {
             alert('Failed to update order', error)
         }
     }
 
-    const loadLogs = async (orderId) => {
-        try {
-            const res = await api.get(`/orders/${orderId}/logs`)
-            setLogOrderId(orderId)
-            setLogs(res.data)
-        } catch (err) {
-            console.error('Log error:', err)
-        }
-    }
 
     return (
         <div className="min-h-screen flex bg-gray-100">
-            {/* Sidebar */}
             <aside className="w-64 bg-white p-6 shadow-md flex flex-col space-y-4">
                 <h2 className="text-xl font-bold text-blue-600 mb-4">eLaundry Panel</h2>
-                <button className="text-left px-4 py-2 rounded hover:bg-blue-100">
-                    Dashboard
+                <button className="text-left px-4 py-2 rounded hover:bg-blue-100">Dashboard</button>
+                <button onClick={toggleForm} className="text-left px-4 py-2 rounded hover:bg-blue-100">
+                    {showForm ? '- Hide Form' : '+ Create Order'}
                 </button>
-                <button
-                    onClick={() => alert('Create Order')}
-                    className="text-left px-4 py-2 rounded hover:bg-blue-100"
-                >
-                    + Create Order
-                </button>
-                <button className="text-left px-4 py-2 rounded hover:bg-blue-100">
-                    My Orders
-                </button>
-                <button className="text-left px-4 py-2 rounded hover:bg-blue-100">
-                    Settings
-                </button>
-                <button
-                    onClick={() => {
-                        localStorage.removeItem('token')
-                        window.location.reload()
-                    }}
-                    className="mt-auto text-left text-red-600 px-4 py-2 rounded hover:bg-red-100"
-                >
-                    Logout
-                </button>
+                <button className="text-left px-4 py-2 rounded hover:bg-blue-100">My Orders</button>
+                <button className="text-left px-4 py-2 rounded hover:bg-blue-100">Settings</button>
+                <button onClick={() => {
+                    localStorage.removeItem('token')
+                    window.location.reload()
+                }} className="mt-auto text-left text-red-600 px-4 py-2 rounded hover:bg-red-100">Logout</button>
             </aside>
 
-            {/* Main Content */}
             <main className="flex-1 p-6">
-                {/* Filter Bar */}
+                {showForm && (
+                    <form className="bg-white p-4 mb-6 rounded shadow" onSubmit={createOrder}>
+                        <h2 className="text-lg font-semibold mb-4">Create Order</h2>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium">Service</label>
+                                <select
+                                    name="service_id"
+                                    value={form.service_id}
+                                    onChange={handleInputChange}
+                                    className="w-full border p-2 rounded"
+                                    required
+                                >
+                                    <option value="">Select a service</option>
+                                    {services.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name} ({s.category}) - {s.price}৳</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium">Quantity</label>
+                                <input
+                                    type="number"
+                                    name="quantity"
+                                    value={form.quantity}
+                                    onChange={handleInputChange}
+                                    className="w-full border p-2 rounded"
+                                    min={1}
+                                    required
+                                />
+                            </div>
+                            <div className="col-span-2">
+                                <label className="block text-sm font-medium">Note</label>
+                                <textarea
+                                    name="note"
+                                    value={form.note}
+                                    onChange={handleInputChange}
+                                    className="w-full border p-2 rounded"
+                                    rows={3}
+                                />
+                            </div>
+                        </div>
+                        <div className="mt-4 font-semibold">Total: <span className="text-blue-600">{totalPrice}৳</span></div>
+                        <button type="submit" className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Submit Order</button>
+                    </form>
+                )}
+
                 <div className="flex justify-between items-center mb-4">
                     <h1 className="text-2xl font-semibold">Orders</h1>
                     <select
@@ -111,7 +158,6 @@ const Dashboard = () => {
                     </select>
                 </div>
 
-                {/* Orders Table */}
                 <div className="bg-white p-4 rounded shadow">
                     {loading ? (
                         <div className="flex items-center space-x-2 text-blue-600">
@@ -134,16 +180,14 @@ const Dashboard = () => {
                             </thead>
                             <tbody>
                             {orders.map((order) => (
-                                <tr key={order.id} className=" text-sm text-gray-700 hover:bg-gray-100">
+                                <tr key={order.id} className="text-sm text-gray-700 hover:bg-gray-100">
                                     <td className="border p-2">{order.service?.name}</td>
                                     <td className="border p-2">{order.service?.category}</td>
                                     <td className="border p-2">{order.quantity}</td>
                                     <td className="border p-2">{order.total_price}৳</td>
                                     <td className="border p-2">{order.status}</td>
                                     <td className="border p-2">{order.payment_status}</td>
-                                    <td className="border p-2">
-                                        {new Date(order.created_at).toLocaleString()}
-                                    </td>
+                                    <td className="border p-2">{new Date(order.created_at).toLocaleString()}</td>
                                     <td className="border p-2 space-x-2">
                                         {order.status === 'Pending' && (
                                             <button
@@ -153,18 +197,6 @@ const Dashboard = () => {
                                                 Cancel
                                             </button>
                                         )}
-                                        <button
-                                            onClick={() => loadLogs(order.id)}
-                                            className="text-blue-500 hover:underline"
-                                        >
-                                            Logs
-                                        </button>
-                                        <button
-                                            onClick={() => updateOrder(order.id)}
-                                            className="text-green-600 hover:underline"
-                                        >
-                                            Complete
-                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -174,18 +206,12 @@ const Dashboard = () => {
                         <p className="text-gray-600">No orders found.</p>
                     )}
 
-                    {/* Logs Section */}
                     {logOrderId && logs.length > 0 && (
                         <div className="mt-6 p-4 border rounded bg-gray-50">
-                            <h2 className="text-lg font-semibold mb-2">
-                                Logs for Order #{logOrderId}
-                            </h2>
+                            <h2 className="text-lg font-semibold mb-2">Logs for Order #{logOrderId}</h2>
                             <ul className="list-disc pl-5 text-sm text-gray-700">
                                 {logs.map((log, i) => (
-                                    <li key={i}>
-                                        [{new Date(log.created_at).toLocaleString()}] {log.status} by{' '}
-                                        {log.admin?.name || 'System'}
-                                    </li>
+                                    <li key={i}>[{new Date(log.created_at).toLocaleString()}] {log.status} by {log.admin?.name || 'System'}</li>
                                 ))}
                             </ul>
                         </div>
@@ -196,4 +222,4 @@ const Dashboard = () => {
     )
 }
 
-export default Dashboard
+export default Dashboard;
