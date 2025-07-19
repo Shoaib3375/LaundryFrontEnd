@@ -1,27 +1,46 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import api from '../api'
 
 const Dashboard = () => {
     const [orders, setOrders] = useState([])
     const [services, setServices] = useState([])
+    const [notifications, setNotifications] = useState([])
+    const [unreadCount, setUnreadCount] = useState(0)
     const [showForm, setShowForm] = useState(false)
+    const [showNotifications, setShowNotifications] = useState(false)
     const [form, setForm] = useState({ service_id: '', quantity: 1, note: '' })
     const [statusFilter, setStatusFilter] = useState('All')
-    const [logs, setLogs] = useState([])
-    const [logOrderId, setLogOrderId] = useState(null)
     const [loading, setLoading] = useState(true)
+
+    const user = JSON.parse(localStorage.getItem('user'))
+    const token = localStorage.getItem('token')
+    const notificationRef = useRef(null)
+    
+    // Handle click outside to close notifications dropdown
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+                setShowNotifications(false)
+            }
+        }
+        
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+        }
+    }, [])
 
     const fetchOrders = useCallback(async () => {
         setLoading(true)
         try {
-            const res =
-                statusFilter === 'All'
-                    ? await api.get('/orders')
-                    : await api.get(`/orders/filter?status=${statusFilter}`)
-            const orderList =
-                statusFilter === 'All'
-                    ? res.data.data.data || []
-                    : res.data.data || []
+            const res = statusFilter === 'All'
+                ? await api.get('/orders')
+                : await api.get(`/orders/filter?status=${statusFilter}`)
+
+            const orderList = statusFilter === 'All'
+                ? res.data.data.data || []
+                : res.data.data || []
+
             setOrders(orderList)
         } catch (error) {
             console.error('Error fetching orders:', error)
@@ -30,10 +49,50 @@ const Dashboard = () => {
         }
     }, [statusFilter])
 
+    const fetchNotifications = async () => {
+        try {
+            const res = await api.get('/notifications')
+            const notifs = res.data.data || []
+            setNotifications(notifs)
+            setUnreadCount(notifs.filter(n => !n.read_at).length)
+        } catch (err) {
+            console.error('Failed to load notifications', err)
+        }
+    }
+
+    const markAllAsRead = async () => {
+        try {
+            await api.post('/notifications/read-all')
+            fetchNotifications()
+        } catch (err) {
+            console.error('Failed to mark all as read', err)
+        }
+    }
+
     useEffect(() => {
         fetchOrders()
         api.get('/services').then(res => setServices(res.data.data || []))
-    }, [fetchOrders])
+        fetchNotifications()
+
+        // Use the echo instance from echo.js
+        import('../echo').then(({ default: echo }) => {
+            if (user) {
+                echo.private(`user.${user.id}`)
+                    .listen('.order.status.updated', (e) => {
+                        setNotifications(prev => [{ message: e.message, read_at: null, created_at: new Date() }, ...prev])
+                        setUnreadCount(count => count + 1)
+                    })
+            }
+        })
+
+        return () => {
+            import('../echo').then(({ default: echo }) => {
+                if (user) {
+                    echo.leave(`user.${user.id}`)
+                }
+            })
+        }
+    }, [fetchOrders, token, user])
 
     const toggleForm = () => setShowForm(!showForm)
 
@@ -55,9 +114,6 @@ const Dashboard = () => {
         }
     }
 
-    const selectedService = services.find(s => s.id === parseInt(form.service_id))
-    const totalPrice = selectedService ? selectedService.price * form.quantity : 0
-
     const cancelOrder = async (id) => {
         if (!window.confirm('Cancel this order?')) return
         try {
@@ -68,16 +124,8 @@ const Dashboard = () => {
         }
     }
 
-    const updateOrder = async (id) => {
-        if (!window.confirm('Mark order as Completed?')) return
-        try {
-            await api.put(`/orders/${id}/status`, { status: 'Completed' })
-            fetchOrders()
-        } catch (error) {
-            alert('Failed to update order', error)
-        }
-    }
-
+    const selectedService = services.find(s => s.id === parseInt(form.service_id))
+    const totalPrice = selectedService ? selectedService.price * form.quantity : 0
 
     return (
         <div className="min-h-screen flex bg-gray-100">
@@ -91,11 +139,58 @@ const Dashboard = () => {
                 <button className="text-left px-4 py-2 rounded hover:bg-blue-100">Settings</button>
                 <button onClick={() => {
                     localStorage.removeItem('token')
+                    localStorage.removeItem('user')
                     window.location.reload()
                 }} className="mt-auto text-left text-red-600 px-4 py-2 rounded hover:bg-red-100">Logout</button>
             </aside>
 
             <main className="flex-1 p-6">
+                {/* Notifications */}
+                <div className="flex justify-end items-center mb-4">
+                    <div className="relative" ref={notificationRef}>
+                        <button 
+                            onClick={() => setShowNotifications(!showNotifications)} 
+                            className="relative text-blue-600 hover:text-blue-800"
+                        >
+                            🔔
+                            {unreadCount > 0 && (
+                                <span className="absolute top-0 right-0 bg-red-600 text-white text-xs rounded-full px-2">{unreadCount}</span>
+                            )}
+                        </button>
+                        {showNotifications && (
+                            <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg border rounded z-10">
+                                <div className="flex justify-between items-center p-2 border-b">
+                                    <h3 className="font-medium">Notifications</h3>
+                                    {unreadCount > 0 && (
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                markAllAsRead();
+                                            }} 
+                                            className="text-xs text-blue-600 hover:text-blue-800"
+                                        >
+                                            Mark all as read
+                                        </button>
+                                    )}
+                                </div>
+                                {notifications.length === 0 ? (
+                                    <div className="p-3 text-gray-500">No notifications</div>
+                                ) : (
+                                    <ul className="max-h-60 overflow-auto">
+                                        {notifications.map((n, i) => (
+                                            <li key={i} className={`px-4 py-2 text-sm ${n.read_at ? 'text-gray-500' : 'text-black font-medium'}`}>
+                                                {n.message || n.data?.message}
+                                                <div className="text-xs text-gray-400">{new Date(n.created_at).toLocaleString()}</div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Create Order Form */}
                 {showForm && (
                     <form className="bg-white p-4 mb-6 rounded shadow" onSubmit={createOrder}>
                         <h2 className="text-lg font-semibold mb-4">Create Order</h2>
@@ -143,6 +238,7 @@ const Dashboard = () => {
                     </form>
                 )}
 
+                {/* Orders Table */}
                 <div className="flex justify-between items-center mb-4">
                     <h1 className="text-2xl font-semibold">Orders</h1>
                     <select
@@ -205,21 +301,10 @@ const Dashboard = () => {
                     ) : (
                         <p className="text-gray-600">No orders found.</p>
                     )}
-
-                    {logOrderId && logs.length > 0 && (
-                        <div className="mt-6 p-4 border rounded bg-gray-50">
-                            <h2 className="text-lg font-semibold mb-2">Logs for Order #{logOrderId}</h2>
-                            <ul className="list-disc pl-5 text-sm text-gray-700">
-                                {logs.map((log, i) => (
-                                    <li key={i}>[{new Date(log.created_at).toLocaleString()}] {log.status} by {log.admin?.name || 'System'}</li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
                 </div>
             </main>
         </div>
     )
 }
 
-export default Dashboard;
+export default Dashboard
