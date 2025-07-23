@@ -11,6 +11,8 @@ const Dashboard = () => {
     const [form, setForm] = useState({ service_id: '', quantity: 1, note: '' })
     const [statusFilter, setStatusFilter] = useState('All')
     const [loading, setLoading] = useState(true)
+    const [selectedOrderLogs, setSelectedOrderLogs] = useState(null)
+    const [loadingLogs, setLoadingLogs] = useState(false)
 
     const user = JSON.parse(localStorage.getItem('user'))
     const token = localStorage.getItem('token')
@@ -52,9 +54,19 @@ const Dashboard = () => {
     const fetchNotifications = async () => {
         try {
             const res = await api.get('/notifications')
-            const notifs = res.data.data || []
-            setNotifications(notifs)
-            setUnreadCount(notifs.filter(n => !n.read_at).length)
+            // Handle the response structure: { notifications: [...] }
+            const notifs = res.data.notifications || res.data.data || []
+            
+            // Transform notifications to match the expected format
+            const formattedNotifs = notifs.map(n => ({
+                id: n.id,
+                message: n.data?.message || n.message,
+                read_at: n.read_at,
+                created_at: n.created_at
+            }))
+            
+            setNotifications(formattedNotifs)
+            setUnreadCount(formattedNotifs.filter(n => !n.read_at).length)
         } catch (err) {
             console.error('Failed to load notifications', err)
         }
@@ -79,8 +91,35 @@ const Dashboard = () => {
             if (user) {
                 echo.private(`user.${user.id}`)
                     .listen('.order.status.updated', (e) => {
-                        setNotifications(prev => [{ message: e.message, read_at: null, created_at: new Date() }, ...prev])
-                        setUnreadCount(count => count + 1)
+                        // Format notification to match API response structure
+                        const newNotification = { 
+                            id: e.id || `temp-${Date.now()}`,
+                            message: e.data?.message || e.message, 
+                            read_at: null, 
+                            created_at: new Date() 
+                        }
+                        
+                        setNotifications(prev => {
+                            // Check if notification with same ID or message already exists
+                            const isDuplicate = prev.some(n => 
+                                (n.id && n.id === newNotification.id) || 
+                                (n.message === newNotification.message && 
+                                 // Check if timestamps are close (within 5 seconds)
+                                 Math.abs(new Date(n.created_at) - new Date(newNotification.created_at)) < 5000)
+                            )
+                            
+                            return isDuplicate ? prev : [newNotification, ...prev]
+                        })
+                        
+                        // Only increment unread count if not a duplicate
+                        setUnreadCount(count => {
+                            const isDuplicate = notifications.some(n => 
+                                (n.id && n.id === newNotification.id) || 
+                                (n.message === newNotification.message && 
+                                 Math.abs(new Date(n.created_at) - new Date(newNotification.created_at)) < 5000)
+                            )
+                            return isDuplicate ? count : count + 1
+                        })
                     })
             }
         })
@@ -178,8 +217,8 @@ const Dashboard = () => {
                                 ) : (
                                     <ul className="max-h-60 overflow-auto">
                                         {notifications.map((n, i) => (
-                                            <li key={i} className={`px-4 py-2 text-sm ${n.read_at ? 'text-gray-500' : 'text-black font-medium'}`}>
-                                                {n.message || n.data?.message}
+                                            <li key={n.id || i} className={`px-4 py-2 text-sm ${n.read_at ? 'text-gray-500' : 'text-black font-medium'}`}>
+                                                {n.message}
                                                 <div className="text-xs text-gray-400">{new Date(n.created_at).toLocaleString()}</div>
                                             </li>
                                         ))}
