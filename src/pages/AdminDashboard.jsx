@@ -11,29 +11,48 @@ export default function AdminDashboard() {
     const [showCouponForm, setShowCouponForm] = useState(false)
     const [coupons, setCoupons] = useState([]);
     const [showCouponList, setShowCouponList] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(1)
+    const [perPage] = useState(10);
 
     const fetchOrders = useCallback(async () => {
         setLoading(true)
         try {
             const res =
                 statusFilter === 'All'
-                    ? await api.get('/orders')
-                    : await api.get(`/orders/filter?status=${statusFilter}`)
+                    ? await api.get(`/orders?page=${currentPage}&per_page=${perPage}`)
+                    : await api.get(`/orders/filter?status=${statusFilter}&page=${currentPage}&per_page=${perPage}`)
+            
             const orderList =
                 statusFilter === 'All'
                     ? res.data.data.data || []
                     : res.data.data || []
+            
             setOrders(orderList)
+            
+            // Set pagination data
+            if (res.data.data.meta) {
+                setTotalPages(res.data.data.meta.last_page || 1)
+            } else if (res.data.meta) {
+                setTotalPages(res.data.meta.last_page || 1)
+            } else {
+                setTotalPages(1)
+            }
         } catch (error) {
             console.error('Error fetching orders:', error)
         } finally {
             setLoading(false)
         }
-    }, [statusFilter])
+    }, [statusFilter, currentPage, perPage])
 
     useEffect(() => {
         fetchOrders()
     }, [fetchOrders])
+    
+    // Reset to page 1 when filter changes
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [statusFilter])
 
     useEffect(() => {
         if (showCouponForm) {
@@ -79,7 +98,7 @@ export default function AdminDashboard() {
         try {
             const res = await api.get(`/orders/${orderId}/logs`)
             setLogOrderId(orderId)
-            setLogs(res.data)
+            setLogs(res.data.logs || [])
         } catch (err) {
             console.error('Log error:', err)
         }
@@ -183,7 +202,7 @@ export default function AdminDashboard() {
                                         )}
                                         <button
                                             onClick={() => loadLogs(order.id)}
-                                            className="text-blue-600 hover:underline"
+                                            className="text-white bg-purple-600 hover:bg-purple-800 px-3 py-1 rounded"
                                         >
                                             Logs
                                         </button>
@@ -203,19 +222,69 @@ export default function AdminDashboard() {
                     ) : (
                         <p className="text-gray-600">No orders found.</p>
                     )}
+                    
+                    {/* Pagination */}
+                    {!loading && orders.length > 0 && (
+                        <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                            <div className="text-sm text-gray-600">
+                                Page {currentPage} of {totalPages}
+                            </div>
+                            <div className="flex space-x-2">
+                                <button 
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                >
+                                    Previous
+                                </button>
+                                <button 
+                                    onClick={() => setCurrentPage(prev => prev < totalPages ? prev + 1 : prev)}
+                                    disabled={currentPage === totalPages}
+                                    className={`px-3 py-1 rounded ${currentPage === totalPages ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Logs */}
-                    {logOrderId && logs.length > 0 && (
+                    {logOrderId && (
                         <div className="mt-6 p-4 border rounded bg-gray-50">
-                            <h2 className="text-lg font-semibold mb-2">Logs for Order #{logOrderId}</h2>
-                            <ul className="list-disc pl-5 text-sm text-gray-700">
-                                {logs.map((log, i) => (
-                                    <li key={i}>
-                                        [{new Date(log.created_at).toLocaleString()}] {log.status} by{' '}
-                                        {log.admin?.name || 'System'}
-                                    </li>
-                                ))}
-                            </ul>
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-lg font-semibold">Order #{logOrderId} Status History</h2>
+                                <button 
+                                    onClick={() => setLogOrderId(null)}
+                                    className="text-gray-500 hover:text-gray-700"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            
+                            {logs.length > 0 ? (
+                                <table className="w-full border-collapse border text-sm">
+                                    <thead>
+                                        <tr className="bg-gray-200 text-gray-700">
+                                            <th className="border p-2">Admin</th>
+                                            <th className="border p-2">Old Status</th>
+                                            <th className="border p-2">New Status</th>
+                                            <th className="border p-2">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {logs.map((log) => (
+                                            <tr key={log.id} className="text-sm text-gray-700 hover:bg-gray-100">
+                                                <td className="border p-2">{log.admin?.name || 'System'}</td>
+                                                <td className="border p-2">{log.old_status}</td>
+                                                <td className="border p-2">{log.new_status}</td>
+                                                <td className="border p-2">{new Date(log.created_at).toLocaleString()}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <p className="text-gray-600">No logs found for this order.</p>
+                            )}
                         </div>
                     )}
                 </div>
