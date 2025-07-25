@@ -77,9 +77,15 @@ export default function AdminDashboard() {
     const cancelOrder = async (id) => {
         if (!window.confirm('Cancel this order?')) return
         try {
-            await api.put(`/orders/${id}/cancel`)
-            fetchOrders()
+            const res = await api.put(`/orders/${id}/cancel`)
+            if (res.status === 200 || res.data.success) {
+                alert('Order cancelled successfully!')
+                fetchOrders()
+            } else {
+                alert('Failed to cancel order')
+            }
         } catch (error) {
+            console.error('Cancel order error:', error)
             alert('Failed to cancel order')
         }
     }
@@ -87,9 +93,15 @@ export default function AdminDashboard() {
     const updateOrder = async (id) => {
         if (!window.confirm('Mark order as Completed?')) return
         try {
-            await api.put(`/orders/${id}/status`, { status: 'Completed' })
-            fetchOrders()
+            const res = await api.put(`/orders/${id}/status`, { status: 'Completed' })
+            if (res.status === 200 || res.data.success) {
+                alert('Order updated successfully!')
+                fetchOrders()
+            } else {
+                alert('Failed to update order')
+            }
         } catch (error) {
+            console.error('Update order error:', error)
             alert('Failed to update order')
         }
     }
