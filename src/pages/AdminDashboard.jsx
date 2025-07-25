@@ -78,15 +78,16 @@ export default function AdminDashboard() {
         if (!window.confirm('Cancel this order?')) return
         try {
             const res = await api.put(`/orders/${id}/cancel`)
-            if (res.status === 200 || res.data.success) {
+            if (res.status === 200 && res.data.success !== false) {
                 alert('Order cancelled successfully!')
                 fetchOrders()
             } else {
-                alert('Failed to cancel order')
+                alert(res.data.message || 'Failed to cancel order')
             }
         } catch (error) {
             console.error('Cancel order error:', error)
-            alert('Failed to cancel order')
+            const errorMessage = error.response?.data?.message || 'Failed to cancel order'
+            alert(errorMessage)
         }
     }
 
@@ -94,15 +95,16 @@ export default function AdminDashboard() {
         if (!window.confirm('Mark order as Completed?')) return
         try {
             const res = await api.put(`/orders/${id}/status`, { status: 'Completed' })
-            if (res.status === 200 || res.data.success) {
+            if (res.status === 200 && res.data.success !== false) {
                 alert('Order updated successfully!')
                 fetchOrders()
             } else {
-                alert('Failed to update order')
+                alert(res.data.message || 'Failed to update order')
             }
         } catch (error) {
             console.error('Update order error:', error)
-            alert('Failed to update order')
+            const errorMessage = error.response?.data?.message || 'Failed to update order'
+            alert(errorMessage)
         }
     }
 

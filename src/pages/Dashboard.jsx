@@ -199,15 +199,16 @@ const Dashboard = () => {
         if (!window.confirm('Cancel this order?')) return
         try {
             const res = await api.put(`/orders/${id}/cancel`)
-            if (res.status === 200 || res.data.success) {
+            if (res.status === 200 && res.data.success !== false) {
                 alert('Order cancelled successfully!')
                 fetchOrders()
             } else {
-                alert('Failed to cancel order')
+                alert(res.data.message || 'Failed to cancel order')
             }
         } catch (error) {
             console.error('Cancel order error:', error)
-            alert('Failed to cancel order')
+            const errorMessage = error.response?.data?.message || 'Failed to cancel order'
+            alert(errorMessage)
         }
     }
     
