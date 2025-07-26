@@ -191,7 +191,9 @@ const Dashboard = () => {
             }
         } catch (err) {
             console.error('Create order error:', err)
-            alert('Failed to create order')
+            console.error('Error response:', err.response?.data)
+            const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to create order'
+            alert(errorMessage)
         }
     }
 
@@ -226,9 +228,9 @@ const Dashboard = () => {
                 amount: totalPrice
             })
             
-            // Check if the coupon is valid based on the specific response format
-            if (res.data.success && res.data.data?.valid) {
-                // Extract discount percentage from the nested data object
+            // Check if the coupon is valid based on the new response format
+            if (res.data.success && res.data.data?.is_valid) {
+                // Extract discount percentage from the data object
                 const discountPercent = res.data.data.discount_percent
                 
                 // Calculate discounted price
