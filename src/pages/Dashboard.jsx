@@ -8,7 +8,9 @@ const Dashboard = () => {
     const [unreadCount, setUnreadCount] = useState(0)
     const [showForm, setShowForm] = useState(false)
     const [showNotifications, setShowNotifications] = useState(false)
-    const [form, setForm] = useState({ service_id: '', quantity: 1, note: '' })
+    const [form, setForm] = useState({ service_id: '', quantity: 1, note: '', coupon_code: '' })
+    const [couponStatus, setCouponStatus] = useState(null)
+    const [discountedPrice, setDiscountedPrice] = useState(0)
     const [statusFilter, setStatusFilter] = useState('All')
     const [loading, setLoading] = useState(true)
     const [selectedOrderLogs, setSelectedOrderLogs] = useState(null)
@@ -143,28 +145,133 @@ const Dashboard = () => {
     const createOrder = async (e) => {
         e.preventDefault()
         try {
-            await api.post('/orders', form)
-            alert('Order created!')
-            setShowForm(false)
-            fetchOrders()
+            // Calculate the final price
+            const finalPrice = couponStatus?.valid ? discountedPrice : totalPrice
+            
+            console.log('Order creation details:')
+            console.log('Original price:', totalPrice)
+            console.log('Coupon valid:', couponStatus?.valid)
+            console.log('Discounted price:', discountedPrice)
+            console.log('Final price to send:', finalPrice)
+            
+            // Prepare order data
+            const orderData = { 
+                service_id: form.service_id,
+                quantity: form.quantity,
+                note: form.note,
+                total_price: finalPrice
+            }
+            
+            // Add coupon information if valid
+            if (couponStatus?.valid && form.coupon_code) {
+                orderData.coupon_code = form.coupon_code
+                orderData.discount_percent = couponStatus.couponData.discount_percent
+                orderData.original_price = totalPrice
+                orderData.discount_amount = totalPrice - finalPrice
+                
+                console.log('Coupon applied:')
+                console.log('- Code:', form.coupon_code)
+                console.log('- Discount %:', couponStatus.couponData.discount_percent)
+                console.log('- Discount amount:', totalPrice - finalPrice)
+            }
+            
+            console.log('Final order data:', orderData)
+            
+            const res = await api.post('/orders', orderData)
+            
+            if (res.status === 200 || res.status === 201 || res.data.success) {
+                alert(`Order created successfully! ${couponStatus?.valid ? `Saved ${totalPrice - finalPrice}৳ with coupon!` : ''}`)
+                setShowForm(false)
+                setForm({ service_id: '', quantity: 1, note: '', coupon_code: '' })
+                setCouponStatus(null)
+                setDiscountedPrice(0)
+                fetchOrders()
+            } else {
+                alert('Failed to create order')
+            }
         } catch (err) {
-            console.error(err)
-            alert('Failed to create order')
+            console.error('Create order error:', err)
+            console.error('Error response:', err.response?.data)
+            const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to create order'
+            alert(errorMessage)
         }
     }
 
     const cancelOrder = async (id) => {
         if (!window.confirm('Cancel this order?')) return
         try {
-            await api.put(`/orders/${id}/cancel`)
-            fetchOrders()
+            const res = await api.put(`/orders/${id}/cancel`)
+            if (res.status === 200 && res.data.success !== false) {
+                alert('Order cancelled successfully!')
+                fetchOrders()
+            } else {
+                alert(res.data.message || 'Failed to cancel order')
+            }
         } catch (error) {
-            alert('Failed to cancel order', error)
+            console.error('Cancel order error:', error)
+            const errorMessage = error.response?.data?.message || 'Failed to cancel order'
+            alert(errorMessage)
+        }
+    }
+    
+    const validateCoupon = async () => {
+        if (!form.coupon_code.trim()) {
+            setCouponStatus(null)
+            setDiscountedPrice(0)
+            return
+        }
+        
+        try {
+            // Use the coupons/validate endpoint
+            const res = await api.post('/coupons/validate', {
+                code: form.coupon_code,
+                amount: totalPrice
+            })
+            
+            // Check if the coupon is valid based on the new response format
+            if (res.data.success && res.data.data?.is_valid) {
+                // Extract discount percentage from the data object
+                const discountPercent = res.data.data.discount_percent
+                
+                // Calculate discounted price
+                const calculatedPrice = totalPrice * (1 - discountPercent / 100)
+                const finalPrice = Math.round(calculatedPrice * 100) / 100
+                
+                setCouponStatus({ 
+                    valid: true, 
+                    message: `Coupon applied! ${discountPercent}% discount`,
+                    couponData: res.data.data
+                })
+                
+                // Set the discounted price
+                setDiscountedPrice(finalPrice)
+            } else {
+                // Invalid coupon
+                setCouponStatus({ 
+                    valid: false, 
+                    message: res.data.message || 'Invalid coupon code' 
+                })
+                setDiscountedPrice(0)
+            }
+        } catch (error) {
+            console.error('Error validating coupon:', error)
+            setCouponStatus({ valid: false, message: 'Error validating coupon' })
+            setDiscountedPrice(0)
         }
     }
 
     const selectedService = services.find(s => s.id === parseInt(form.service_id))
     const totalPrice = selectedService ? selectedService.price * form.quantity : 0
+    
+    // Update discounted price when total price changes
+    useEffect(() => {
+        if (couponStatus?.valid && couponStatus.couponData?.discount_percent) {
+            const discountPercent = couponStatus.couponData.discount_percent
+            const calculatedPrice = totalPrice * (1 - discountPercent / 100)
+            const finalPrice = Math.round(calculatedPrice * 100) / 100
+            setDiscountedPrice(finalPrice)
+        }
+    }, [totalPrice])
 
     return (
         <div className="min-h-screen flex bg-gray-100">
@@ -271,8 +378,43 @@ const Dashboard = () => {
                                     rows={3}
                                 />
                             </div>
+                            <div className="col-span-2">
+                                <label className="block text-sm font-medium">Coupon Code</label>
+                                <div className="flex space-x-2">
+                                    <input
+                                        type="text"
+                                        name="coupon_code"
+                                        value={form.coupon_code}
+                                        onChange={handleInputChange}
+                                        className="flex-1 border p-2 rounded"
+                                        placeholder="Enter coupon code"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={validateCoupon}
+                                        className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded"
+                                    >
+                                        Apply
+                                    </button>
+                                </div>
+                                {couponStatus && (
+                                    <div className={`mt-1 text-sm ${couponStatus.valid ? 'text-green-600' : 'text-red-600'}`}>
+                                        {couponStatus.message}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <div className="mt-4 font-semibold">Total: <span className="text-blue-600">{totalPrice}৳</span></div>
+                        <div className="mt-4 font-semibold">
+                            {couponStatus?.valid ? (
+                                <div>
+                                    <span className="text-gray-500 line-through mr-2">{totalPrice}৳</span>
+                                    <span className="text-blue-600">{discountedPrice}৳</span>
+                                    <span className="ml-2 text-sm text-green-600">(Discounted)</span>
+                                </div>
+                            ) : (
+                                <span>Total: <span className="text-blue-600">{totalPrice}৳</span></span>
+                            )}
+                        </div>
                         <button type="submit" className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Submit Order</button>
                     </form>
                 )}
