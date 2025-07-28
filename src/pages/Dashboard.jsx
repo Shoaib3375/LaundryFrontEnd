@@ -13,45 +13,36 @@ const Dashboard = () => {
     const [discountedPrice, setDiscountedPrice] = useState(0)
     const [statusFilter, setStatusFilter] = useState('All')
     const [loading, setLoading] = useState(true)
-    const [selectedOrderLogs, setSelectedOrderLogs] = useState(null)
-    const [loadingLogs, setLoadingLogs] = useState(false)
+
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(1)
+    const [perPage] = useState(10)
 
     const user = JSON.parse(localStorage.getItem('user'))
-    const token = localStorage.getItem('token')
     const notificationRef = useRef(null)
-    
-    // Handle click outside to close notifications dropdown
-    useEffect(() => {
-        function handleClickOutside(event) {
-            if (notificationRef.current && !notificationRef.current.contains(event.target)) {
-                setShowNotifications(false)
-            }
-        }
-        
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside)
-        }
-    }, [])
 
     const fetchOrders = useCallback(async () => {
         setLoading(true)
         try {
-            const res = statusFilter === 'All'
-                ? await api.get('/orders')
-                : await api.get(`/orders/filter?status=${statusFilter}`)
-
-            const orderList = statusFilter === 'All'
-                ? res.data.data.data || []
-                : res.data.data || []
-
-            setOrders(orderList)
+            const params = new URLSearchParams({
+                page: currentPage,
+                per_page: perPage
+            })
+            
+            if (statusFilter !== 'All') {
+                params.append('status', statusFilter)
+            }
+            
+            const res = await api.get(`/orders?${params}`)
+            
+            setOrders(res.data.data || [])
+            setTotalPages(res.data.pagination?.last_page || 1)
         } catch (error) {
             console.error('Error fetching orders:', error)
         } finally {
             setLoading(false)
         }
-    }, [statusFilter])
+    }, [statusFilter, currentPage, perPage])
 
     const fetchNotifications = async () => {
         try {
@@ -83,57 +74,17 @@ const Dashboard = () => {
         }
     }
 
+    // Reset to page 1 when filter changes
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [statusFilter])
+
     useEffect(() => {
         fetchOrders()
         api.get('/services').then(res => setServices(res.data.data || []))
         fetchNotifications()
 
-        // Use the echo instance from echo.js
-        import('../echo').then(({ default: echo }) => {
-            if (user) {
-                echo.private(`user.${user.id}`)
-                    .listen('.order.status.updated', (e) => {
-                        // Format notification to match API response structure
-                        const newNotification = { 
-                            id: e.id || `temp-${Date.now()}`,
-                            message: e.data?.message || e.message, 
-                            read_at: null, 
-                            created_at: new Date() 
-                        }
-                        
-                        setNotifications(prev => {
-                            // Check if notification with same ID or message already exists
-                            const isDuplicate = prev.some(n => 
-                                (n.id && n.id === newNotification.id) || 
-                                (n.message === newNotification.message && 
-                                 // Check if timestamps are close (within 5 seconds)
-                                 Math.abs(new Date(n.created_at) - new Date(newNotification.created_at)) < 5000)
-                            )
-                            
-                            return isDuplicate ? prev : [newNotification, ...prev]
-                        })
-                        
-                        // Only increment unread count if not a duplicate
-                        setUnreadCount(count => {
-                            const isDuplicate = notifications.some(n => 
-                                (n.id && n.id === newNotification.id) || 
-                                (n.message === newNotification.message && 
-                                 Math.abs(new Date(n.created_at) - new Date(newNotification.created_at)) < 5000)
-                            )
-                            return isDuplicate ? count : count + 1
-                        })
-                    })
-            }
-        })
-
-        return () => {
-            import('../echo').then(({ default: echo }) => {
-                if (user) {
-                    echo.leave(`user.${user.id}`)
-                }
-            })
-        }
-    }, [fetchOrders, token, user])
+    }, [fetchOrders, user])
 
     const toggleForm = () => setShowForm(!showForm)
 
@@ -145,16 +96,8 @@ const Dashboard = () => {
     const createOrder = async (e) => {
         e.preventDefault()
         try {
-            // Calculate the final price
             const finalPrice = couponStatus?.valid ? discountedPrice : totalPrice
             
-            console.log('Order creation details:')
-            console.log('Original price:', totalPrice)
-            console.log('Coupon valid:', couponStatus?.valid)
-            console.log('Discounted price:', discountedPrice)
-            console.log('Final price to send:', finalPrice)
-            
-            // Prepare order data
             const orderData = { 
                 service_id: form.service_id,
                 quantity: form.quantity,
@@ -162,20 +105,12 @@ const Dashboard = () => {
                 total_price: finalPrice
             }
             
-            // Add coupon information if valid
             if (couponStatus?.valid && form.coupon_code) {
                 orderData.coupon_code = form.coupon_code
                 orderData.discount_percent = couponStatus.couponData.discount_percent
                 orderData.original_price = totalPrice
                 orderData.discount_amount = totalPrice - finalPrice
-                
-                console.log('Coupon applied:')
-                console.log('- Code:', form.coupon_code)
-                console.log('- Discount %:', couponStatus.couponData.discount_percent)
-                console.log('- Discount amount:', totalPrice - finalPrice)
             }
-            
-            console.log('Final order data:', orderData)
             
             const res = await api.post('/orders', orderData)
             
@@ -190,9 +125,7 @@ const Dashboard = () => {
                 alert('Failed to create order')
             }
         } catch (err) {
-            console.error('Create order error:', err)
-            console.error('Error response:', err.response?.data)
-            const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to create order'
+            const errorMessage = err.response?.data?.message || 'Failed to create order'
             alert(errorMessage)
         }
     }
@@ -208,9 +141,7 @@ const Dashboard = () => {
                 alert(res.data.message || 'Failed to cancel order')
             }
         } catch (error) {
-            console.error('Cancel order error:', error)
-            const errorMessage = error.response?.data?.message || 'Failed to cancel order'
-            alert(errorMessage)
+            alert('Failed to cancel order')
         }
     }
     
@@ -254,7 +185,6 @@ const Dashboard = () => {
                 setDiscountedPrice(0)
             }
         } catch (error) {
-            console.error('Error validating coupon:', error)
             setCouponStatus({ valid: false, message: 'Error validating coupon' })
             setDiscountedPrice(0)
         }
@@ -481,6 +411,31 @@ const Dashboard = () => {
                         </table>
                     ) : (
                         <p className="text-gray-600">No orders found.</p>
+                    )}
+                    
+                    {/* Pagination */}
+                    {!loading && orders.length > 0 && totalPages > 1 && (
+                        <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                            <div className="text-sm text-gray-600">
+                                Page {currentPage} of {totalPages}
+                            </div>
+                            <div className="flex space-x-2">
+                                <button 
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                >
+                                    Previous
+                                </button>
+                                <button 
+                                    onClick={() => setCurrentPage(prev => prev < totalPages ? prev + 1 : prev)}
+                                    disabled={currentPage === totalPages}
+                                    className={`px-3 py-1 rounded ${currentPage === totalPages ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
                     )}
                 </div>
             </main>

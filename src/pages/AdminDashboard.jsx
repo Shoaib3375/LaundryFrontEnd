@@ -13,33 +13,29 @@ export default function AdminDashboard() {
     const [showCouponList, setShowCouponList] = useState(false);
     const [currentPage, setCurrentPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
-    const [perPage] = useState(10);
+    const [perPage] = useState(10)
+    const [activeTab, setActiveTab] = useState('orders')
+    const [revenueData, setRevenueData] = useState(null)
+    const [dashboardStats, setDashboardStats] = useState(null)
 
     const fetchOrders = useCallback(async () => {
         setLoading(true)
         try {
-            const res =
-                statusFilter === 'All'
-                    ? await api.get(`/orders?page=${currentPage}&per_page=${perPage}`)
-                    : await api.get(`/orders/filter?status=${statusFilter}&page=${currentPage}&per_page=${perPage}`)
-            
-            const orderList =
-                statusFilter === 'All'
-                    ? res.data.data.data || []
-                    : res.data.data || []
-            
-            setOrders(orderList)
-            
-            // Set pagination data
-            if (res.data.data.meta) {
-                setTotalPages(res.data.data.meta.last_page || 1)
-            } else if (res.data.meta) {
-                setTotalPages(res.data.meta.last_page || 1)
-            } else {
-                setTotalPages(1)
+            const params = new URLSearchParams({
+                page: currentPage,
+                per_page: perPage
+            })
+
+            if (statusFilter !== 'All') {
+                params.append('status', statusFilter)
             }
+
+            const res = await api.get(`/orders?${params}`)
+
+            setOrders(res.data.data || [])
+            setTotalPages(res.data.pagination?.last_page || 1)
         } catch (error) {
-            console.error('Error fetching orders:', error)
+            alert('Failed to fetch orders')
         } finally {
             setLoading(false)
         }
@@ -48,7 +44,7 @@ export default function AdminDashboard() {
     useEffect(() => {
         fetchOrders()
     }, [fetchOrders])
-    
+
     // Reset to page 1 when filter changes
     useEffect(() => {
         setCurrentPage(1)
@@ -68,11 +64,7 @@ export default function AdminDashboard() {
         }
     }, [showCouponList]);
 
-    const handleModalClick = (e, closeModal) => {
-        if (e.target === e.currentTarget) {
-            closeModal();
-        }
-    };
+
 
     const cancelOrder = async (id) => {
         if (!window.confirm('Cancel this order?')) return
@@ -85,9 +77,7 @@ export default function AdminDashboard() {
                 alert(res.data.message || 'Failed to cancel order')
             }
         } catch (error) {
-            console.error('Cancel order error:', error)
-            const errorMessage = error.response?.data?.message || 'Failed to cancel order'
-            alert(errorMessage)
+            alert('Failed to cancel order')
         }
     }
 
@@ -102,9 +92,7 @@ export default function AdminDashboard() {
                 alert(res.data.message || 'Failed to update order')
             }
         } catch (error) {
-            console.error('Update order error:', error)
-            const errorMessage = error.response?.data?.message || 'Failed to update order'
-            alert(errorMessage)
+            alert('Failed to update order')
         }
     }
 
@@ -114,7 +102,7 @@ export default function AdminDashboard() {
             setLogOrderId(orderId)
             setLogs(res.data.logs || [])
         } catch (err) {
-            console.error('Log error:', err)
+            alert('Failed to load logs')
         }
     }
 
@@ -123,16 +111,52 @@ export default function AdminDashboard() {
             const res = await api.get('/coupons');
             setCoupons(res.data.data || []);
         } catch (error) {
-            console.error('Error fetching coupons:', error);
+            alert('Failed to fetch coupons')
         }
     };
+
+    const fetchDashboardStats = async () => {
+        try {
+            const res = await api.get('/admin/dashboard');
+            setDashboardStats(res.data.data);
+        } catch (error) {
+            alert('Failed to fetch dashboard stats')
+        }
+    };
+
+    const fetchRevenueData = async () => {
+        try {
+            const res = await api.get('/admin/revenue');
+            setRevenueData(res.data.data);
+        } catch (error) {
+            alert('Failed to fetch revenue data')
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'revenue') {
+            fetchRevenueData();
+            fetchDashboardStats();
+        }
+    }, [activeTab]);
 
     return (
         <div className="min-h-screen flex bg-gray-100">
             {/* Sidebar */}
             <aside className="w-64 bg-white p-6 shadow-md flex flex-col space-y-4">
                 <h2 className="text-xl font-bold text-blue-600 mb-4">Admin Panel</h2>
-                <button className="text-left px-4 py-2 rounded hover:bg-blue-100">Orders</button>
+                <button
+                    onClick={() => setActiveTab('orders')}
+                    className={`text-left px-4 py-2 rounded ${activeTab === 'orders' ? 'bg-blue-100 text-blue-600' : 'hover:bg-blue-100'}`}
+                >
+                    Orders
+                </button>
+                <button
+                    onClick={() => setActiveTab('revenue')}
+                    className={`text-left px-4 py-2 rounded ${activeTab === 'revenue' ? 'bg-blue-100 text-blue-600' : 'hover:bg-blue-100'}`}
+                >
+                    Revenue Dashboard
+                </button>
                 <button className="text-left px-4 py-2 rounded hover:bg-blue-100">User Management</button>
                 <button className="text-left px-4 py-2 rounded hover:bg-blue-100">Reports</button>
                 <button onClick={() => setShowCouponList(true)} className="text-left px-4 py-2 rounded hover:bg-blue-100">
@@ -158,155 +182,266 @@ export default function AdminDashboard() {
 
             {/* Main Content */}
             <main className="flex-1 p-6">
-                {/* Filter */}
-                <div className="flex justify-between items-center mb-4">
-                    <h1 className="text-2xl font-semibold">Manage Orders</h1>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    >
-                        <option value="All">All</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Processing">Processing</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
-                    </select>
-                </div>
+                {activeTab === 'revenue' ? (
+                    /* Revenue Dashboard */
+                    <div className="space-y-6">
+                        <h1 className="text-3xl font-bold text-gray-800">Revenue Dashboard</h1>
 
-                {/* Orders Table */}
-                <div className="bg-white p-4 rounded shadow">
-                    {loading ? (
-                        <div className="flex items-center space-x-2 text-blue-600">
-                            <div className="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                            <span>Loading orders...</span>
-                        </div>
-                    ) : orders.length > 0 ? (
-                        <table className="w-full border-collapse border text-sm">
-                            <thead>
-                            <tr className="bg-gray-200 text-gray-700">
-                                <th className="border p-2">Service</th>
-                                <th className="border p-2">Category</th>
-                                <th className="border p-2">Qty</th>
-                                <th className="border p-2">Total</th>
-                                <th className="border p-2">Status</th>
-                                <th className="border p-2">Payment</th>
-                                <th className="border p-2">Date</th>
-                                <th className="border p-2">Actions</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {orders.map((order) => (
-                                <tr key={order.id} className="hover:bg-gray-100">
-                                    <td className="border p-2">{order.service?.name}</td>
-                                    <td className="border p-2">{order.service?.category}</td>
-                                    <td className="border p-2">{order.quantity}</td>
-                                    <td className="border p-2">{order.total_price}৳</td>
-                                    <td className="border p-2">{order.status}</td>
-                                    <td className="border p-2">{order.payment_status}</td>
-                                    <td className="border p-2">{new Date(order.created_at).toLocaleString()}</td>
-                                    <td className="border p-2 space-x-2">
-                                        {order.status === 'Pending' && (
-                                            <button
-                                                onClick={() => cancelOrder(order.id)}
-                                                className="text-white bg-red-600 hover:bg-red-800 px-3 py-1 rounded"
-                                            >
-                                                Cancel
-                                            </button>
-                                        )}
-                                        <button
-                                            onClick={() => loadLogs(order.id)}
-                                            className="text-white bg-purple-600 hover:bg-purple-800 px-3 py-1 rounded"
-                                        >
-                                            Logs
-                                        </button>
-                                        {order.status !== 'Completed' && (
-                                            <button
-                                                onClick={() => updateOrder(order.id)}
-                                                className="text-green-600 hover:underline"
-                                            >
-                                                Complete
-                                            </button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <p className="text-gray-600">No orders found.</p>
-                    )}
-                    
-                    {/* Pagination */}
-                    {!loading && orders.length > 0 && (
-                        <div className="flex justify-between items-center mt-4 pt-4 border-t">
-                            <div className="text-sm text-gray-600">
-                                Page {currentPage} of {totalPages}
-                            </div>
-                            <div className="flex space-x-2">
-                                <button 
-                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                    disabled={currentPage === 1}
-                                    className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                                >
-                                    Previous
-                                </button>
-                                <button 
-                                    onClick={() => setCurrentPage(prev => prev < totalPages ? prev + 1 : prev)}
-                                    disabled={currentPage === totalPages}
-                                    className={`px-3 py-1 rounded ${currentPage === totalPages ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                                >
-                                    Next
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                        {/* Stats Cards */}
+                        {dashboardStats && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-lg shadow-lg text-white">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-blue-100 text-sm font-medium">Revenue This Month</p>
+                                            <p className="text-2xl font-bold">৳{dashboardStats.revenue_this_month || 0}</p>
+                                        </div>
+                                        <div className="bg-blue-400 p-3 rounded-full">
+                                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
 
-                    {/* Logs */}
-                    {logOrderId && (
-                        <div className="mt-6 p-4 border rounded bg-gray-50">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-lg font-semibold">Order #{logOrderId} Status History</h2>
-                                <button 
-                                    onClick={() => setLogOrderId(null)}
-                                    className="text-gray-500 hover:text-gray-700"
-                                >
-                                    ×
-                                </button>
+                                <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-lg shadow-lg text-white">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-green-100 text-sm font-medium">Today's Orders</p>
+                                            <p className="text-2xl font-bold">{dashboardStats.today_orders || 0}</p>
+                                        </div>
+                                        <div className="bg-green-400 p-3 rounded-full">
+                                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 2L3 7v11a2 2 0 002 2h10a2 2 0 002-2V7l-7-5zM8 15a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-6 rounded-lg shadow-lg text-white">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-purple-100 text-sm font-medium">Completed Orders</p>
+                                            <p className="text-2xl font-bold">{dashboardStats.completed_orders || 0}</p>
+                                        </div>
+                                        <div className="bg-purple-400 p-3 rounded-full">
+                                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-6 rounded-lg shadow-lg text-white">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-orange-100 text-sm font-medium">Today's Revenue</p>
+                                            <p className="text-2xl font-bold">৳{dashboardStats.revenue_today || 0}</p>
+                                        </div>
+                                        <div className="bg-orange-400 p-3 rounded-full">
+                                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            
-                            {logs.length > 0 ? (
+                        )}
+
+                        {/* Daily Revenue Chart */}
+                        {revenueData && revenueData.daily && (
+                            <div className="bg-white p-6 rounded-lg shadow-lg">
+                                <h2 className="text-xl font-semibold mb-4 text-gray-800">Daily Revenue Trend</h2>
+                                <div className="h-64 flex items-end justify-between space-x-2">
+                                    {revenueData.daily.map((item, index) => {
+                                        const maxRevenue = Math.max(...revenueData.daily.map(r => parseFloat(r.total)))
+                                        const height = maxRevenue > 0 ? (parseFloat(item.total) / maxRevenue) * 200 : 0
+                                        return (
+                                            <div key={index} className="flex flex-col items-center flex-1">
+                                                <div className="text-xs text-gray-600 mb-2">৳{item.total}</div>
+                                                <div
+                                                    className="bg-gradient-to-t from-blue-500 to-blue-300 rounded-t w-full transition-all duration-300 hover:from-blue-600 hover:to-blue-400"
+                                                    style={{ height: `${height}px`, minHeight: '4px' }}
+                                                ></div>
+                                                <div className="text-xs text-gray-500 mt-2">{new Date(item.date).toLocaleDateString()}</div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Monthly Revenue */}
+                        {revenueData && revenueData.monthly && (
+                            <div className="bg-white p-6 rounded-lg shadow-lg">
+                                <h2 className="text-xl font-semibold mb-4 text-gray-800">Monthly Revenue</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {revenueData.monthly.map((item, index) => (
+                                        <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                                            <h3 className="font-medium text-gray-800">{item.month}</h3>
+                                            <p className="text-2xl font-bold text-blue-600 mt-2">৳{item.total}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    /* Orders Management */
+                    <div>
+                        {/* Filter */}
+                        <div className="flex justify-between items-center mb-4">
+                            <h1 className="text-2xl font-semibold">Manage Orders</h1>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            >
+                                <option value="All">All</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Processing">Processing</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </div>
+
+                        {/* Orders Table */}
+                        <div className="bg-white p-4 rounded shadow">
+                            {loading ? (
+                                <div className="flex items-center space-x-2 text-blue-600">
+                                    <div className="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                    <span>Loading orders...</span>
+                                </div>
+                            ) : orders.length > 0 ? (
                                 <table className="w-full border-collapse border text-sm">
                                     <thead>
-                                        <tr className="bg-gray-200 text-gray-700">
-                                            <th className="border p-2">Admin</th>
-                                            <th className="border p-2">Old Status</th>
-                                            <th className="border p-2">New Status</th>
-                                            <th className="border p-2">Date</th>
-                                        </tr>
+                                    <tr className="bg-gray-200 text-gray-700">
+                                        <th className="border p-2">Service</th>
+                                        <th className="border p-2">Category</th>
+                                        <th className="border p-2">Qty</th>
+                                        <th className="border p-2">Note</th>
+                                        <th className="border p-2">Total</th>
+                                        <th className="border p-2">Status</th>
+                                        <th className="border p-2">Payment</th>
+                                        <th className="border p-2">Date</th>
+                                        <th className="border p-2">Actions</th>
+                                    </tr>
                                     </thead>
                                     <tbody>
-                                        {logs.map((log) => (
-                                            <tr key={log.id} className="text-sm text-gray-700 hover:bg-gray-100">
-                                                <td className="border p-2">{log.admin?.name || 'System'}</td>
-                                                <td className="border p-2">{log.old_status}</td>
-                                                <td className="border p-2">{log.new_status}</td>
-                                                <td className="border p-2">{new Date(log.created_at).toLocaleString()}</td>
-                                            </tr>
-                                        ))}
+                                    {orders.map((order) => (
+                                        <tr key={order.id} className="hover:bg-gray-100">
+                                            <td className="border p-2">{order.service?.name}</td>
+                                            <td className="border p-2">{order.service?.category}</td>
+                                            <td className="border p-2">{order.quantity}</td>
+                                            <td className="border p-2">{order.note || 'N/A'}</td>
+                                            <td className="border p-2">{order.total_price}৳</td>
+                                            <td className="border p-2">{order.status}</td>
+                                            <td className="border p-2">{order.payment_status}</td>
+                                            <td className="border p-2">{new Date(order.created_at).toLocaleString()}</td>
+                                            <td className="border p-2 space-x-1">
+                                                {order.status === 'Pending' && (
+                                                    <button
+                                                        onClick={() => cancelOrder(order.id)}
+                                                        className="text-white bg-red-600 hover:bg-red-800 px-3 py-1 rounded"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => loadLogs(order.id)}
+                                                    className="text-white bg-purple-600 hover:bg-purple-800 px-3 py-1 rounded"
+                                                >
+                                                    Logs
+                                                </button>
+                                                {order.status !== 'Completed' && (
+                                                    <button
+                                                        onClick={() => updateOrder(order.id)}
+                                                        className="text-green-600 hover:underline"
+                                                    >
+                                                        Complete
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
                                     </tbody>
                                 </table>
                             ) : (
-                                <p className="text-gray-600">No logs found for this order.</p>
+                                <p className="text-gray-600">No orders found.</p>
+                            )}
+
+                            {/* Pagination */}
+                            {!loading && orders.length > 0 && (
+                                <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                                    <div className="text-sm text-gray-600">
+                                        Page {currentPage} of {totalPages}
+                                    </div>
+                                    <div className="flex space-x-2">
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
+                                            className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                        >
+                                            Previous
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentPage(prev => prev < totalPages ? prev + 1 : prev)}
+                                            disabled={currentPage === totalPages}
+                                            className={`px-3 py-1 rounded ${currentPage === totalPages ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Logs */}
+                            {logOrderId && (
+                                <div className="mt-6 p-4 border rounded bg-gray-50">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-lg font-semibold">Order #{logOrderId} Status History</h2>
+                                        <button
+                                            onClick={() => setLogOrderId(null)}
+                                            className="text-gray-500 hover:text-gray-700"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+
+                                    {logs.length > 0 ? (
+                                        <table className="w-full border-collapse border text-sm">
+                                            <thead>
+                                            <tr className="bg-gray-200 text-gray-700">
+                                                <th className="border p-2">Admin</th>
+                                                <th className="border p-2">Old Status</th>
+                                                <th className="border p-2">New Status</th>
+                                                <th className="border p-2">Date</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {logs.map((log) => (
+                                                <tr key={log.id} className="text-sm text-gray-700 hover:bg-gray-100">
+                                                    <td className="border p-2">{log.admin?.name || 'System'}</td>
+                                                    <td className="border p-2">{log.old_status}</td>
+                                                    <td className="border p-2">{log.new_status}</td>
+                                                    <td className="border p-2">{new Date(log.created_at).toLocaleString()}</td>
+                                                </tr>
+                                            ))}
+                                            </tbody>
+                                        </table>
+                                    ) : (
+                                        <p className="text-gray-600">No logs found for this order.</p>
+                                    )}
+                                </div>
                             )}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </main>
 
             {/* Coupon List Modal */}
             {showCouponList && (
-                <div className="fixed inset-0 bg-transparent bg-opacity-50 flex justify-center items-center z-50" onClick={(e) => handleModalClick(e, () => setShowCouponList(false))}>
+                <div className="fixed inset-0 bg-transparent bg-opacity-50 flex justify-center items-center z-50" onClick={() => setShowCouponList(false)}>
                     <div className="bg-white rounded shadow-lg p-6 w-full max-w-4xl relative max-h-[80vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-semibold">Coupons</h2>
@@ -324,7 +459,6 @@ export default function AdminDashboard() {
                                     <th className="border p-2">Code</th>
                                     <th className="border p-2">Discount (%)</th>
                                     <th className="border p-2">Expires At</th>
-                                    {/*<th className="border p-2">Actions</th>*/}
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -333,14 +467,6 @@ export default function AdminDashboard() {
                                         <td className="border p-2">{coupon.code}</td>
                                         <td className="border p-2">{coupon.discount_percent}</td>
                                         <td className="border p-2"> {new Date(coupon.expires_at).toLocaleDateString()}</td>
-                                        {/*<td className="border p-2">*/}
-                                        {/*    <button*/}
-                                        {/*        onClick={() => alert('Edit feature coming soon')}*/}
-                                        {/*        className="text-blue-600 hover:underline"*/}
-                                        {/*    >*/}
-                                        {/*        Edit*/}
-                                        {/*    </button>*/}
-                                        {/*</td>*/}
                                     </tr>
                                 ))}
                                 </tbody>
