@@ -8,50 +8,56 @@ const Dashboard = () => {
     const [unreadCount, setUnreadCount] = useState(0)
     const [showForm, setShowForm] = useState(false)
     const [showNotifications, setShowNotifications] = useState(false)
-    const [form, setForm] = useState({ service_id: '', quantity: 1, note: '', coupon_code: '' })
+    const [form, setForm] = useState({ service_id: '', quantity: 1, note: '', coupon_code: '', delivery_address_id: '' })
+    const [addresses, setAddresses] = useState([])
     const [couponStatus, setCouponStatus] = useState(null)
     const [discountedPrice, setDiscountedPrice] = useState(0)
     const [statusFilter, setStatusFilter] = useState('All')
     const [loading, setLoading] = useState(true)
-    const [selectedOrderLogs, setSelectedOrderLogs] = useState(null)
-    const [loadingLogs, setLoadingLogs] = useState(false)
+
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(1)
+    const [perPage] = useState(10)
+    const [activeTab, setActiveTab] = useState('orders')
+    const [profile, setProfile] = useState(null)
+    const [profileForm, setProfileForm] = useState({ name: '', email: '' })
+    const [showAddressForm, setShowAddressForm] = useState(false)
+    const [editingAddress, setEditingAddress] = useState(null)
+    const [addressForm, setAddressForm] = useState({
+        type: 'home',
+        street_address: '',
+        city: '',
+        state: '',
+        postal_code: '',
+        country: 'US',
+        is_default: false
+    })
 
     const user = JSON.parse(localStorage.getItem('user'))
-    const token = localStorage.getItem('token')
     const notificationRef = useRef(null)
-    
-    // Handle click outside to close notifications dropdown
-    useEffect(() => {
-        function handleClickOutside(event) {
-            if (notificationRef.current && !notificationRef.current.contains(event.target)) {
-                setShowNotifications(false)
-            }
-        }
-        
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside)
-        }
-    }, [])
 
     const fetchOrders = useCallback(async () => {
         setLoading(true)
         try {
-            const res = statusFilter === 'All'
-                ? await api.get('/orders')
-                : await api.get(`/orders/filter?status=${statusFilter}`)
-
-            const orderList = statusFilter === 'All'
-                ? res.data.data.data || []
-                : res.data.data || []
-
-            setOrders(orderList)
+            const params = new URLSearchParams({
+                page: currentPage,
+                per_page: perPage
+            })
+            
+            if (statusFilter !== 'All') {
+                params.append('status', statusFilter)
+            }
+            
+            const res = await api.get(`/orders?${params}`)
+            
+            setOrders(res.data.data || [])
+            setTotalPages(res.data.pagination?.last_page || 1)
         } catch (error) {
             console.error('Error fetching orders:', error)
         } finally {
             setLoading(false)
         }
-    }, [statusFilter])
+    }, [statusFilter, currentPage, perPage])
 
     const fetchNotifications = async () => {
         try {
@@ -83,57 +89,18 @@ const Dashboard = () => {
         }
     }
 
+    // Reset to page 1 when filter changes
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [statusFilter])
+
     useEffect(() => {
         fetchOrders()
         api.get('/services').then(res => setServices(res.data.data || []))
+        fetchProfile()
         fetchNotifications()
 
-        // Use the echo instance from echo.js
-        import('../echo').then(({ default: echo }) => {
-            if (user) {
-                echo.private(`user.${user.id}`)
-                    .listen('.order.status.updated', (e) => {
-                        // Format notification to match API response structure
-                        const newNotification = { 
-                            id: e.id || `temp-${Date.now()}`,
-                            message: e.data?.message || e.message, 
-                            read_at: null, 
-                            created_at: new Date() 
-                        }
-                        
-                        setNotifications(prev => {
-                            // Check if notification with same ID or message already exists
-                            const isDuplicate = prev.some(n => 
-                                (n.id && n.id === newNotification.id) || 
-                                (n.message === newNotification.message && 
-                                 // Check if timestamps are close (within 5 seconds)
-                                 Math.abs(new Date(n.created_at) - new Date(newNotification.created_at)) < 5000)
-                            )
-                            
-                            return isDuplicate ? prev : [newNotification, ...prev]
-                        })
-                        
-                        // Only increment unread count if not a duplicate
-                        setUnreadCount(count => {
-                            const isDuplicate = notifications.some(n => 
-                                (n.id && n.id === newNotification.id) || 
-                                (n.message === newNotification.message && 
-                                 Math.abs(new Date(n.created_at) - new Date(newNotification.created_at)) < 5000)
-                            )
-                            return isDuplicate ? count : count + 1
-                        })
-                    })
-            }
-        })
-
-        return () => {
-            import('../echo').then(({ default: echo }) => {
-                if (user) {
-                    echo.leave(`user.${user.id}`)
-                }
-            })
-        }
-    }, [fetchOrders, token, user])
+    }, [fetchOrders, user])
 
     const toggleForm = () => setShowForm(!showForm)
 
@@ -145,44 +112,29 @@ const Dashboard = () => {
     const createOrder = async (e) => {
         e.preventDefault()
         try {
-            // Calculate the final price
             const finalPrice = couponStatus?.valid ? discountedPrice : totalPrice
             
-            console.log('Order creation details:')
-            console.log('Original price:', totalPrice)
-            console.log('Coupon valid:', couponStatus?.valid)
-            console.log('Discounted price:', discountedPrice)
-            console.log('Final price to send:', finalPrice)
-            
-            // Prepare order data
             const orderData = { 
                 service_id: form.service_id,
                 quantity: form.quantity,
                 note: form.note,
-                total_price: finalPrice
+                total_price: finalPrice,
+                delivery_address_id: form.delivery_address_id
             }
             
-            // Add coupon information if valid
             if (couponStatus?.valid && form.coupon_code) {
                 orderData.coupon_code = form.coupon_code
                 orderData.discount_percent = couponStatus.couponData.discount_percent
                 orderData.original_price = totalPrice
                 orderData.discount_amount = totalPrice - finalPrice
-                
-                console.log('Coupon applied:')
-                console.log('- Code:', form.coupon_code)
-                console.log('- Discount %:', couponStatus.couponData.discount_percent)
-                console.log('- Discount amount:', totalPrice - finalPrice)
             }
-            
-            console.log('Final order data:', orderData)
             
             const res = await api.post('/orders', orderData)
             
             if (res.status === 200 || res.status === 201 || res.data.success) {
                 alert(`Order created successfully! ${couponStatus?.valid ? `Saved ${totalPrice - finalPrice}৳ with coupon!` : ''}`)
                 setShowForm(false)
-                setForm({ service_id: '', quantity: 1, note: '', coupon_code: '' })
+                setForm({ service_id: '', quantity: 1, note: '', coupon_code: '', delivery_address_id: '' })
                 setCouponStatus(null)
                 setDiscountedPrice(0)
                 fetchOrders()
@@ -190,9 +142,7 @@ const Dashboard = () => {
                 alert('Failed to create order')
             }
         } catch (err) {
-            console.error('Create order error:', err)
-            console.error('Error response:', err.response?.data)
-            const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to create order'
+            const errorMessage = err.response?.data?.message || 'Failed to create order'
             alert(errorMessage)
         }
     }
@@ -208,9 +158,7 @@ const Dashboard = () => {
                 alert(res.data.message || 'Failed to cancel order')
             }
         } catch (error) {
-            console.error('Cancel order error:', error)
-            const errorMessage = error.response?.data?.message || 'Failed to cancel order'
-            alert(errorMessage)
+            alert('Failed to cancel order')
         }
     }
     
@@ -254,7 +202,6 @@ const Dashboard = () => {
                 setDiscountedPrice(0)
             }
         } catch (error) {
-            console.error('Error validating coupon:', error)
             setCouponStatus({ valid: false, message: 'Error validating coupon' })
             setDiscountedPrice(0)
         }
@@ -273,16 +220,121 @@ const Dashboard = () => {
         }
     }, [totalPrice])
 
+    const fetchProfile = async () => {
+        try {
+            const res = await api.get('/profile')
+            setProfile(res.data.data.user)
+            setAddresses(res.data.data.addresses || [])
+            setProfileForm({
+                name: res.data.data.user.name,
+                email: res.data.data.user.email
+            })
+        } catch (error) {
+            alert('Failed to fetch profile')
+        }
+    }
+
+    const updateProfile = async (e) => {
+        e.preventDefault()
+        try {
+            await api.put('/profile', profileForm)
+            alert('Profile updated successfully')
+            fetchProfile()
+        } catch (error) {
+            alert('Failed to update profile')
+        }
+    }
+
+    const saveAddress = async (e) => {
+        e.preventDefault()
+        try {
+            if (editingAddress) {
+                await api.put(`/profile/addresses/${editingAddress.id}`, addressForm)
+                alert('Address updated successfully')
+            } else {
+                await api.post('/profile/addresses', addressForm)
+                alert('Address added successfully')
+            }
+            setShowAddressForm(false)
+            setEditingAddress(null)
+            resetAddressForm()
+            fetchProfile()
+        } catch (error) {
+            alert('Failed to save address')
+        }
+    }
+
+    const deleteAddress = async (id) => {
+        if (!window.confirm('Delete this address?')) return
+        try {
+            await api.delete(`/profile/addresses/${id}`)
+            alert('Address deleted successfully')
+            fetchProfile()
+        } catch (error) {
+            alert('Failed to delete address')
+        }
+    }
+
+    const editAddress = (address) => {
+        setEditingAddress(address)
+        setAddressForm({
+            type: address.type,
+            street_address: address.street_address,
+            city: address.city,
+            state: address.state,
+            postal_code: address.postal_code,
+            country: address.country,
+            is_default: address.is_default
+        })
+        setShowAddressForm(true)
+    }
+
+    const resetAddressForm = () => {
+        setAddressForm({
+            type: 'home',
+            street_address: '',
+            city: '',
+            state: '',
+            postal_code: '',
+            country: 'US',
+            is_default: false
+        })
+    }
+
+    const cancelAddressForm = () => {
+        setShowAddressForm(false)
+        setEditingAddress(null)
+        resetAddressForm()
+    }
+
     return (
         <div className="min-h-screen flex bg-gray-100">
             <aside className="w-64 bg-white p-6 shadow-md flex flex-col space-y-4">
                 <h2 className="text-xl font-bold text-blue-600 mb-4">eLaundry Panel</h2>
-                <button className="text-left px-4 py-2 rounded hover:bg-blue-100">Dashboard</button>
+                <button 
+                    onClick={() => setActiveTab('orders')}
+                    className={`text-left px-4 py-2 rounded ${activeTab === 'orders' ? 'bg-blue-100 text-blue-600' : 'hover:bg-blue-100'}`}
+                >
+                    Dashboard
+                </button>
                 <button onClick={toggleForm} className="text-left px-4 py-2 rounded hover:bg-blue-100">
                     {showForm ? '- Hide Form' : '+ Create Order'}
                 </button>
-                <button className="text-left px-4 py-2 rounded hover:bg-blue-100">My Orders</button>
-                <button className="text-left px-4 py-2 rounded hover:bg-blue-100">Settings</button>
+                <button 
+                    onClick={() => setActiveTab('orders')}
+                    className={`text-left px-4 py-2 rounded ${activeTab === 'orders' ? 'bg-blue-100 text-blue-600' : 'hover:bg-blue-100'}`}
+                >
+                    My Orders
+                </button>
+                <button 
+                    onClick={() => setActiveTab('profile')}
+                    className={`text-left px-4 py-2 rounded flex items-center space-x-2 ${activeTab === 'profile' ? 'bg-blue-100 text-blue-600' : 'hover:bg-blue-100'}`}
+                >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
+                    </svg>
+                    <span>Profile</span>
+                </button>
                 <button onClick={() => {
                     localStorage.removeItem('token')
                     localStorage.removeItem('user')
@@ -368,6 +420,23 @@ const Dashboard = () => {
                                     required
                                 />
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium">Delivery Address</label>
+                                <select
+                                    name="delivery_address_id"
+                                    value={form.delivery_address_id}
+                                    onChange={handleInputChange}
+                                    className="w-full border p-2 rounded"
+                                    required
+                                >
+                                    <option value="">Select delivery address</option>
+                                    {addresses.map(addr => (
+                                        <option key={addr.id} value={addr.id}>
+                                            {addr.type}: {addr.street_address}, {addr.city}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                             <div className="col-span-2">
                                 <label className="block text-sm font-medium">Note</label>
                                 <textarea
@@ -419,21 +488,23 @@ const Dashboard = () => {
                     </form>
                 )}
 
-                {/* Orders Table */}
-                <div className="flex justify-between items-center mb-4">
-                    <h1 className="text-2xl font-semibold">Orders</h1>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    >
-                        <option value="All">All</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Processing">Processing</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
-                    </select>
-                </div>
+                {activeTab === 'orders' ? (
+                    <>
+                        {/* Orders Table */}
+                        <div className="flex justify-between items-center mb-4">
+                            <h1 className="text-2xl font-semibold">Orders</h1>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            >
+                                <option value="All">All</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Processing">Processing</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </div>
 
                 <div className="bg-white p-4 rounded shadow">
                     {loading ? (
@@ -482,7 +553,221 @@ const Dashboard = () => {
                     ) : (
                         <p className="text-gray-600">No orders found.</p>
                     )}
+                    
+                    {/* Pagination */}
+                    {!loading && orders.length > 0 && totalPages > 1 && (
+                        <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                            <div className="text-sm text-gray-600">
+                                Page {currentPage} of {totalPages}
+                            </div>
+                            <div className="flex space-x-2">
+                                <button 
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                >
+                                    Previous
+                                </button>
+                                <button 
+                                    onClick={() => setCurrentPage(prev => prev < totalPages ? prev + 1 : prev)}
+                                    disabled={currentPage === totalPages}
+                                    className={`px-3 py-1 rounded ${currentPage === totalPages ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
+                    </>
+                ) : (
+                    /* Profile Section */
+                    <div>
+                        <h1 className="text-2xl font-semibold mb-6">Profile Settings</h1>
+
+                        {/* Profile Form */}
+                        <div className="bg-white p-6 rounded shadow mb-6">
+                            <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
+                            <form onSubmit={updateProfile} className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Name</label>
+                                    <input
+                                        type="text"
+                                        value={profileForm.name}
+                                        onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                                        className="w-full border p-2 rounded"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Email</label>
+                                    <input
+                                        type="email"
+                                        value={profileForm.email}
+                                        onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
+                                        className="w-full border p-2 rounded"
+                                        required
+                                    />
+                                </div>
+                                <div className="col-span-2">
+                                    <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                        Update Profile
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        {/* Addresses */}
+                        <div className="bg-white p-6 rounded shadow">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-lg font-semibold">Delivery Addresses</h2>
+                                <button
+                                    onClick={() => setShowAddressForm(true)}
+                                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                >
+                                    Add Address
+                                </button>
+                            </div>
+
+                            {addresses.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {addresses.map(address => (
+                                        <div key={address.id} className="border p-4 rounded">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <span className="font-medium capitalize">{address.type}</span>
+                                                {address.is_default && (
+                                                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Default</span>
+                                                )}
+                                            </div>
+                                            <p className="text-sm text-gray-600 mb-3">
+                                                {address.street_address}<br/>
+                                                {address.city}, {address.state} {address.postal_code}<br/>
+                                                {address.country}
+                                            </p>
+                                            <div className="flex space-x-2">
+                                                <button
+                                                    onClick={() => editAddress(address)}
+                                                    className="text-blue-600 hover:underline text-sm"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteAddress(address.id)}
+                                                    className="text-red-600 hover:underline text-sm"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-gray-600">No addresses added yet.</p>
+                            )}
+                        </div>
+                    </div>
+                )}
+                {/* Address Form Modal */}
+                {showAddressForm && (
+                    <div className="fixed inset-0 bg-transparent bg-opacity-50 flex justify-center items-center z-50" onClick={cancelAddressForm}>
+                        <div className="bg-white p-6 rounded shadow-lg w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                            <h3 className="text-lg font-semibold mb-4">
+                                {editingAddress ? 'Edit Address' : 'Add New Address'}
+                            </h3>
+                            <form onSubmit={saveAddress} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Type</label>
+                                    <select
+                                        value={addressForm.type}
+                                        onChange={(e) => setAddressForm(prev => ({ ...prev, type: e.target.value }))}
+                                        className="w-full border p-2 rounded"
+                                    >
+                                        <option value="home">Home</option>
+                                        <option value="work">Work</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Street Address</label>
+                                    <input
+                                        type="text"
+                                        value={addressForm.street_address}
+                                        onChange={(e) => setAddressForm(prev => ({ ...prev, street_address: e.target.value }))}
+                                        className="w-full border p-2 rounded"
+                                        required
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">City</label>
+                                        <input
+                                            type="text"
+                                            value={addressForm.city}
+                                            onChange={(e) => setAddressForm(prev => ({ ...prev, city: e.target.value }))}
+                                            className="w-full border p-2 rounded"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">State</label>
+                                        <input
+                                            type="text"
+                                            value={addressForm.state}
+                                            onChange={(e) => setAddressForm(prev => ({ ...prev, state: e.target.value }))}
+                                            className="w-full border p-2 rounded"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Postal Code</label>
+                                        <input
+                                            type="text"
+                                            value={addressForm.postal_code}
+                                            onChange={(e) => setAddressForm(prev => ({ ...prev, postal_code: e.target.value }))}
+                                            className="w-full border p-2 rounded"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Country</label>
+                                        <input
+                                            type="text"
+                                            value={addressForm.country}
+                                            onChange={(e) => setAddressForm(prev => ({ ...prev, country: e.target.value }))}
+                                            className="w-full border p-2 rounded"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={addressForm.is_default}
+                                            onChange={(e) => setAddressForm(prev => ({ ...prev, is_default: e.target.checked }))}
+                                            className="mr-2"
+                                        />
+                                        Set as default address
+                                    </label>
+                                </div>
+                                <div className="flex space-x-2">
+                                    <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                        {editingAddress ? 'Update' : 'Add'} Address
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={cancelAddressForm}
+                                        className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     )
