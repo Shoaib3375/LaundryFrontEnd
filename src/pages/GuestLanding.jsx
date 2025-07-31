@@ -1,11 +1,69 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
-    Package, Clock, Users, BarChart3, CheckCircle, Star, ArrowRight, Menu, X, Smartphone, Shield, Zap
+    Package, Clock, Users, BarChart3, CheckCircle, Star, ArrowRight, Menu, X, Smartphone, Shield, Zap, ShoppingCart
 } from 'lucide-react';
 import {Link} from 'react-router-dom'
+import api from '../api'
 
 const LaundryLandingPage = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [services, setServices] = useState([]);
+    const [showOrderForm, setShowOrderForm] = useState(false);
+    const [formData, setFormData] = useState({
+        service_id: '',
+        quantity: 1,
+        guest_name: '',
+        guest_email: '',
+        guest_phone: '',
+        guest_address: '',
+        note: ''
+    });
+    const [orderSuccess, setOrderSuccess] = useState(null);
+    const [errors, setErrors] = useState({});
+
+    useEffect(() => {
+        // Create a request without auth token for public services
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/services`, {
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            console.log('Services API response:', data);
+            const servicesData = data.data || data || [];
+            setServices(Array.isArray(servicesData) ? servicesData : []);
+        })
+        .catch(err => console.error('Services API error:', err));
+    }, []);
+
+    const handleOrderSubmit = async (e) => {
+        e.preventDefault();
+        setErrors({});
+        
+        try {
+            const response = await api.post('/guest/orders', formData);
+            setOrderSuccess(response.data.data);
+            setFormData({
+                service_id: '',
+                quantity: 1,
+                guest_name: '',
+                guest_email: '',
+                guest_phone: '',
+                guest_address: '',
+                note: ''
+            });
+            setShowOrderForm(false);
+        } catch (error) {
+            if (error.response?.data?.errors) {
+                setErrors(error.response.data.errors);
+            }
+        }
+    };
+
+    const selectedService = Array.isArray(services) ? services.find(s => s.id == formData.service_id) : null;
+    const totalPrice = selectedService ? (selectedService.price * formData.quantity).toFixed(2) : '0.00';
 
     const features = [{
         icon: <Package className="w-8 h-8 text-blue-600"/>,
@@ -87,8 +145,8 @@ const LaundryLandingPage = () => {
                     <div className="hidden md:flex items-center space-x-8">
                         <a href="#features"
                            className="text-gray-700 hover:text-blue-600 transition-colors">Features</a>
-                        <a href="#testimonials"
-                           className="text-gray-700 hover:text-blue-600 transition-colors">Testimonials</a>
+                        <a href="#order"
+                           className="text-gray-700 hover:text-blue-600 transition-colors">Order Now</a>
                         <a href="#pricing"
                            className="text-gray-700 hover:text-blue-600 transition-colors">Pricing</a>
 
@@ -121,12 +179,13 @@ const LaundryLandingPage = () => {
                 <div className="px-2 pt-2 pb-3 space-y-1">
                     <a href="#features"
                        className="block px-3 py-2 text-gray-700 hover:text-blue-600">Features</a>
-                    <a href="#testimonials"
-                       className="block px-3 py-2 text-gray-700 hover:text-blue-600">Testimonials</a>
+                    <a href="#order"
+                       className="block px-3 py-2 text-gray-700 hover:text-blue-600">Order Now</a>
                     <a href="#pricing" className="block px-3 py-2 text-gray-700 hover:text-blue-600">Pricing</a>
                     <button
+                        onClick={() => setShowOrderForm(true)}
                         className="w-full mt-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-full">
-                        Get Started
+                        Order Now
                     </button>
                 </div>
             </div>)}
@@ -150,13 +209,15 @@ const LaundryLandingPage = () => {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <button
-                            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300">
-                            Start Free Trial
+                            onClick={() => setShowOrderForm(true)}
+                            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2">
+                            <ShoppingCart className="w-5 h-5" />
+                            Order Now
                         </button>
-                        <button
-                            className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-full text-lg font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors">
-                            Watch Demo
-                        </button>
+                        <a href="#features"
+                            className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-full text-lg font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors text-center">
+                            Learn More
+                        </a>
                     </div>
                 </div>
 
@@ -170,24 +231,24 @@ const LaundryLandingPage = () => {
                                     <h3 className="font-semibold text-gray-900">Total Orders</h3>
                                     <Package className="w-6 h-6 text-blue-600"/>
                                 </div>
-                                <div className="text-3xl font-bold text-blue-600">1,247</div>
-                                <div className="text-sm text-gray-600">+23% from last month</div>
+                                <div className="text-3xl font-bold text-gray-900">1,247</div>
+                                <div className="text-sm text-green-600">+12% from last month</div>
                             </div>
                             <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="font-semibold text-gray-900">Revenue</h3>
                                     <BarChart3 className="w-6 h-6 text-green-600"/>
                                 </div>
-                                <div className="text-3xl font-bold text-green-600">$28,540</div>
-                                <div className="text-sm text-gray-600">+18% from last month</div>
+                                <div className="text-3xl font-bold text-gray-900">$24,580</div>
+                                <div className="text-sm text-green-600">+8% from last month</div>
                             </div>
                             <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="font-semibold text-gray-900">Customers</h3>
                                     <Users className="w-6 h-6 text-purple-600"/>
                                 </div>
-                                <div className="text-3xl font-bold text-purple-600">892</div>
-                                <div className="text-sm text-gray-600">+12% from last month</div>
+                                <div className="text-3xl font-bold text-gray-900">892</div>
+                                <div className="text-sm text-green-600">+15% from last month</div>
                             </div>
                         </div>
                     </div>
@@ -195,38 +256,230 @@ const LaundryLandingPage = () => {
             </div>
         </section>
 
+        {/* Guest Order Form Modal */}
+        {showOrderForm && (
+            <div className="fixed inset-0 bg-transparent bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-900">Place Your Order</h2>
+                            <button
+                                onClick={() => setShowOrderForm(false)}
+                                className="text-gray-500 hover:text-gray-700"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleOrderSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Service</label>
+                                <select
+                                    value={formData.service_id}
+                                    onChange={(e) => setFormData({...formData, service_id: e.target.value})}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    required
+                                >
+                                    <option value="">Select a service</option>
+                                    {Array.isArray(services) && services.length > 0 ? services.map(service => (
+                                        <option key={service.id} value={service.id}>
+                                            {service.name} - ৳{service.price}
+                                        </option>
+                                    )) : (
+                                        <option disabled>No services available</option>
+                                    )}
+                                </select>
+                                {errors.service_id && <p className="text-red-500 text-sm mt-1">{errors.service_id[0]}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Quantity (kg)</label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0.1"
+                                    value={formData.quantity}
+                                    onChange={(e) => setFormData({...formData, quantity: e.target.value})}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    required
+                                />
+                                {errors.quantity && <p className="text-red-500 text-sm mt-1">{errors.quantity[0]}</p>}
+                            </div>
+
+                            {selectedService && (
+                                <div className="bg-blue-50 p-4 rounded-lg">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-medium">Total Price:</span>
+                                        <span className="text-xl font-bold text-blue-600">৳{totalPrice}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                                    <input
+                                        type="text"
+                                        value={formData.guest_name}
+                                        onChange={(e) => setFormData({...formData, guest_name: e.target.value})}
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        required
+                                    />
+                                    {errors.guest_name && <p className="text-red-500 text-sm mt-1">{errors.guest_name[0]}</p>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                                    <input
+                                        type="tel"
+                                        value={formData.guest_phone}
+                                        onChange={(e) => setFormData({...formData, guest_phone: e.target.value})}
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        required
+                                    />
+                                    {errors.guest_phone && <p className="text-red-500 text-sm mt-1">{errors.guest_phone[0]}</p>}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input
+                                    type="email"
+                                    value={formData.guest_email}
+                                    onChange={(e) => setFormData({...formData, guest_email: e.target.value})}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    required
+                                />
+                                {errors.guest_email && <p className="text-red-500 text-sm mt-1">{errors.guest_email[0]}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                                <textarea
+                                    value={formData.guest_address}
+                                    onChange={(e) => setFormData({...formData, guest_address: e.target.value})}
+                                    rows={3}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    required
+                                />
+                                {errors.guest_address && <p className="text-red-500 text-sm mt-1">{errors.guest_address[0]}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Special Instructions (Optional)</label>
+                                <textarea
+                                    value={formData.note}
+                                    onChange={(e) => setFormData({...formData, note: e.target.value})}
+                                    rows={2}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Any special instructions for your order..."
+                                />
+                                {errors.note && <p className="text-red-500 text-sm mt-1">{errors.note[0]}</p>}
+                            </div>
+
+                            <div className="flex gap-4 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOrderForm(false)}
+                                    className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+                                >
+                                    Place Order
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Order Success Message */}
+        {orderSuccess && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6">
+                    <div className="text-center">
+                        <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Placed Successfully!</h2>
+                        <p className="text-gray-600 mb-4">Your order has been received and is being processed.</p>
+                        
+                        <div className="bg-gray-50 p-4 rounded-lg mb-4 text-left">
+                            <h3 className="font-semibold mb-2">Order Details:</h3>
+                            <p><strong>Order ID:</strong> #{orderSuccess.id}</p>
+                            <p><strong>Customer:</strong> {orderSuccess.guest_name}</p>
+                            <p><strong>Phone:</strong> {orderSuccess.guest_phone}</p>
+                            <p><strong>Email:</strong> {orderSuccess.guest_email}</p>
+                            <p><strong>Total:</strong> ৳{orderSuccess.total_price}</p>
+                            <p><strong>Status:</strong> {orderSuccess.status}</p>
+                        </div>
+                        
+                        <button
+                            onClick={() => setOrderSuccess(null)}
+                            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all duration-300"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Quick Order Section */}
+        <section id="order" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-600 to-purple-600">
+            <div className="max-w-4xl mx-auto text-center">
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+                    Need Laundry Service? Order Now!
+                </h2>
+                <p className="text-xl text-blue-100 mb-8">
+                    Quick and easy ordering - no account required. Get your laundry picked up and delivered.
+                </p>
+                <button
+                    onClick={() => setShowOrderForm(true)}
+                    className="bg-white text-blue-600 px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 mx-auto"
+                >
+                    <ShoppingCart className="w-5 h-5" />
+                    Place Order Now
+                </button>
+            </div>
+        </section>
+
         {/* Features Section */}
-        <section id="features" className="py-20 bg-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-16">
                     <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                        Everything You Need to Run Your Laundry Business
+                        Everything You Need to
+                        <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            Manage Your Laundry Business
+                        </span>
                     </h2>
-                    <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                        From order management to customer relations, we've got all the tools you need to streamline
-                        operations and grow your business.
+                    <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                        Our comprehensive platform provides all the tools you need to streamline operations and grow your business.
                     </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {features.map((feature, index) => (<div key={index}
-                                                            className="bg-gradient-to-br from-gray-50 to-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
-                        <div className="mb-4">
-                            {feature.icon}
+                    {features.map((feature, index) => (
+                        <div key={index} className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-100">
+                            <div className="mb-4">{feature.icon}</div>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
+                            <p className="text-gray-600 leading-relaxed">{feature.description}</p>
                         </div>
-                        <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
-                        <p className="text-gray-600">{feature.description}</p>
-                    </div>))}
+                    ))}
                 </div>
             </div>
         </section>
 
         {/* Testimonials Section */}
-        <section id="testimonials" className="py-20 bg-gradient-to-br from-blue-50 to-purple-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+            <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-16">
                     <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                        Loved by Laundry Business Owners
+                        Trusted by Laundry Businesses Worldwide
                     </h2>
                     <p className="text-xl text-gray-600">
                         See what our customers have to say about LaundryPro
@@ -234,88 +487,82 @@ const LaundryLandingPage = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {testimonials.map((testimonial, index) => (<div key={index}
-                                                                    className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
-                        <div className="flex mb-4">
-                            {[...Array(testimonial.rating)].map((_, i) => (
-                                <Star key={i} className="w-5 h-5 text-yellow-400 fill-current"/>))}
+                    {testimonials.map((testimonial, index) => (
+                        <div key={index} className="bg-white p-8 rounded-2xl shadow-lg">
+                            <div className="flex mb-4">
+                                {[...Array(testimonial.rating)].map((_, i) => (
+                                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                                ))}
+                            </div>
+                            <p className="text-gray-600 mb-6 italic">"{testimonial.content}"</p>
+                            <div>
+                                <div className="font-semibold text-gray-900">{testimonial.name}</div>
+                                <div className="text-gray-500 text-sm">{testimonial.role}</div>
+                            </div>
                         </div>
-                        <p className="text-gray-600 mb-6 italic">"{testimonial.content}"</p>
-                        <div className="border-t pt-4">
-                            <div className="font-semibold text-gray-900">{testimonial.name}</div>
-                            <div className="text-sm text-gray-500">{testimonial.role}</div>
-                        </div>
-                    </div>))}
+                    ))}
                 </div>
             </div>
         </section>
 
         {/* Pricing Section */}
-        <section id="pricing" className="py-20 bg-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-16">
                     <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                         Simple, Transparent Pricing
                     </h2>
                     <p className="text-xl text-gray-600">
-                        Choose the plan that's right for your business
+                        Choose the plan that fits your business size and needs
                     </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {pricingPlans.map((plan, index) => (<div key={index}
-                                                             className={`relative bg-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ${plan.popular ? 'ring-2 ring-blue-500' : ''}`}>
-                        {plan.popular && (<div
-                            className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                    <span
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                      Most Popular
-                    </span>
-                        </div>)}
-                        <div className="p-8">
-                            <h3 className="text-xl font-semibold text-gray-900 mb-2">{plan.name}</h3>
-                            <div className="mb-6">
-                                <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                                <span className="text-gray-600">{plan.period}</span>
+                    {pricingPlans.map((plan, index) => (
+                        <div key={index} className={`bg-white p-8 rounded-2xl shadow-lg relative ${
+                            plan.popular ? 'ring-2 ring-blue-600 transform scale-105' : ''
+                        }`}>
+                            {plan.popular && (
+                                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                                    <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                                        Most Popular
+                                    </span>
+                                </div>
+                            )}
+                            
+                            <div className="text-center mb-8">
+                                <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                                <div className="mb-4">
+                                    <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
+                                    <span className="text-gray-600">{plan.period}</span>
+                                </div>
                             </div>
-                            <ul className="space-y-3 mb-8">
+                            
+                            <ul className="space-y-4 mb-8">
                                 {plan.features.map((feature, featureIndex) => (
                                     <li key={featureIndex} className="flex items-center">
-                                        <CheckCircle className="w-5 h-5 text-green-500 mr-3"/>
+                                        <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
                                         <span className="text-gray-600">{feature}</span>
-                                    </li>))}
+                                    </li>
+                                ))}
                             </ul>
-                            <button
-                                className={`w-full py-3 px-6 rounded-full font-semibold transition-all duration-300 ${plan.popular ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg transform hover:scale-105' : 'border-2 border-gray-300 text-gray-700 hover:border-blue-600 hover:text-blue-600'}`}>
+                            
+                            <button className={`w-full py-3 px-6 rounded-full font-semibold transition-all duration-300 ${
+                                plan.popular 
+                                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg transform hover:scale-105'
+                                    : 'border-2 border-gray-300 text-gray-700 hover:border-blue-600 hover:text-blue-600'
+                            }`}>
                                 Get Started
                             </button>
                         </div>
-                    </div>))}
+                    ))}
                 </div>
             </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                    Ready to Transform Your Laundry Business?
-                </h2>
-                <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-                    Join thousands of laundry businesses that have already streamlined their operations with
-                    LaundryPro.
-                </p>
-                <button
-                    className="bg-white text-blue-600 px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300">
-                    Start Your Free Trial Today
-                    <ArrowRight className="w-5 h-5 ml-2 inline-block"/>
-                </button>
-            </div>
-        </section>
-
         {/* Footer */}
-        <footer className="bg-gray-900 text-white py-12">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <footer className="bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     <div>
                         <div className="flex items-center mb-4">
@@ -323,17 +570,19 @@ const LaundryLandingPage = () => {
                             <span className="text-xl font-bold">LaundryPro</span>
                         </div>
                         <p className="text-gray-400">
-                            The complete solution for modern laundry business management.
+                            Streamline your laundry business with our comprehensive management system.
                         </p>
                     </div>
+                    
                     <div>
                         <h4 className="font-semibold mb-4">Product</h4>
                         <ul className="space-y-2 text-gray-400">
                             <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
                             <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Demo</a></li>
+                            <li><a href="#" className="hover:text-white transition-colors">API</a></li>
                         </ul>
                     </div>
+                    
                     <div>
                         <h4 className="font-semibold mb-4">Company</h4>
                         <ul className="space-y-2 text-gray-400">
@@ -342,21 +591,23 @@ const LaundryLandingPage = () => {
                             <li><a href="#" className="hover:text-white transition-colors">Support</a></li>
                         </ul>
                     </div>
+                    
                     <div>
-                        <h4 className="font-semibold mb-4">Resources</h4>
+                        <h4 className="font-semibold mb-4">Legal</h4>
                         <ul className="space-y-2 text-gray-400">
-                            <li><a href="#" className="hover:text-white transition-colors">Documentation</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">API</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
+                            <li><a href="#" className="hover:text-white transition-colors">Privacy</a></li>
+                            <li><a href="#" className="hover:text-white transition-colors">Terms</a></li>
                         </ul>
                     </div>
                 </div>
+                
                 <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
                     <p>&copy; 2024 LaundryPro. All rights reserved.</p>
                 </div>
             </div>
         </footer>
-    </div>);
+    </div>
+    );
 };
 
 export default LaundryLandingPage;

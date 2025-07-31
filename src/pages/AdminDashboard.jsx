@@ -19,6 +19,9 @@ export default function AdminDashboard() {
     const [dashboardStats, setDashboardStats] = useState(null)
     const [showInvoiceModal, setShowInvoiceModal] = useState(false)
     const [selectedOrder, setSelectedOrder] = useState(null)
+    const [services, setServices] = useState([])
+    const [showServiceForm, setShowServiceForm] = useState(false)
+    const [serviceForm, setServiceForm] = useState({ name: '', price: '', category: '', pricing_method: 'per_kg' })
 
     const fetchOrders = useCallback(async () => {
         setLoading(true)
@@ -37,6 +40,11 @@ export default function AdminDashboard() {
             setOrders(res.data.data || [])
             setTotalPages(res.data.pagination?.last_page || 1)
         } catch (error) {
+            if (error.response?.status === 401) {
+                localStorage.removeItem('token')
+                window.location.href = '/login'
+                return
+            }
             alert('Failed to fetch orders')
         } finally {
             setLoading(false)
@@ -149,8 +157,43 @@ export default function AdminDashboard() {
         if (activeTab === 'revenue') {
             fetchRevenueData();
             fetchDashboardStats();
+        } else if (activeTab === 'services') {
+            fetchServices();
         }
     }, [activeTab]);
+
+    const fetchServices = async () => {
+        try {
+            const res = await api.get('/services');
+            setServices(res.data.data || res.data || []);
+        } catch (error) {
+            alert('Failed to fetch services');
+        }
+    };
+
+    const createService = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post('/services', serviceForm);
+            alert('Service created successfully!');
+            setServiceForm({ name: '', price: '', category: '', pricing_method: 'per_kg' });
+            setShowServiceForm(false);
+            fetchServices();
+        } catch (error) {
+            alert('Failed to create service');
+        }
+    };
+
+    const deleteService = async (id) => {
+        if (!confirm('Delete this service?')) return;
+        try {
+            await api.delete(`/services/${id}`);
+            alert('Service deleted successfully!');
+            fetchServices();
+        } catch (error) {
+            alert('Failed to delete service');
+        }
+    };
 
     return (
         <div className="min-h-screen flex bg-gray-100">
@@ -168,6 +211,12 @@ export default function AdminDashboard() {
                     className={`text-left px-4 py-2 rounded ${activeTab === 'revenue' ? 'bg-blue-100 text-blue-600' : 'hover:bg-blue-100'}`}
                 >
                     Revenue Dashboard
+                </button>
+                <button
+                    onClick={() => setActiveTab('services')}
+                    className={`text-left px-4 py-2 rounded ${activeTab === 'services' ? 'bg-blue-100 text-blue-600' : 'hover:bg-blue-100'}`}
+                >
+                    Services
                 </button>
                 <button className="text-left px-4 py-2 rounded hover:bg-blue-100">User Management</button>
                 <button className="text-left px-4 py-2 rounded hover:bg-blue-100">Reports</button>
@@ -298,6 +347,53 @@ export default function AdminDashboard() {
                             </div>
                         )}
                     </div>
+                ) : activeTab === 'services' ? (
+                    /* Services Management */
+                    <div>
+                        <div className="flex justify-between items-center mb-4">
+                            <h1 className="text-2xl font-semibold">Manage Services</h1>
+                            <button
+                                onClick={() => setShowServiceForm(true)}
+                                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                            >
+                                + Add Service
+                            </button>
+                        </div>
+
+                        <div className="bg-white p-4 rounded shadow">
+                            {services.length > 0 ? (
+                                <table className="w-full border-collapse border text-sm">
+                                    <thead>
+                                        <tr className="bg-gray-200 text-gray-700">
+                                            <th className="border p-2">Name</th>
+                                            <th className="border p-2">Price</th>
+                                            <th className="border p-2">Category</th>
+                                            <th className="border p-2">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {services.map((service) => (
+                                            <tr key={service.id} className="hover:bg-gray-100">
+                                                <td className="border p-2">{service.name}</td>
+                                                <td className="border p-2">৳{service.price}</td>
+                                                <td className="border p-2">{service.category}</td>
+                                                <td className="border p-2">
+                                                    <button
+                                                        onClick={() => deleteService(service.id)}
+                                                        className="text-white bg-red-600 hover:bg-red-800 px-2 py-1 rounded text-xs"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <p className="text-gray-600">No services found. Create your first service!</p>
+                            )}
+                        </div>
+                    </div>
                 ) : (
                     /* Orders Management */
                     <div>
@@ -328,13 +424,11 @@ export default function AdminDashboard() {
                                 <table className="w-full border-collapse border text-sm">
                                     <thead>
                                     <tr className="bg-gray-200 text-gray-700">
+                                        <th className="border p-2">Customer</th>
                                         <th className="border p-2">Service</th>
-                                        <th className="border p-2">Category</th>
                                         <th className="border p-2">Qty</th>
-                                        <th className="border p-2">Note</th>
                                         <th className="border p-2">Total</th>
                                         <th className="border p-2">Status</th>
-                                        <th className="border p-2">Payment</th>
                                         <th className="border p-2">Date</th>
                                         <th className="border p-2">Actions</th>
                                     </tr>
@@ -342,13 +436,21 @@ export default function AdminDashboard() {
                                     <tbody>
                                     {orders.map((order) => (
                                         <tr key={order.id} className="hover:bg-gray-100">
+                                            <td className="border p-2">
+                                                {order.guest_name ? (
+                                                    <div>
+                                                        <div className="font-medium">{order.guest_name}</div>
+                                                        {/*<div className="text-xs text-gray-500">{order.guest_phone}</div>*/}
+                                                        {/*<div className="text-xs text-gray-500">{order.guest_email}</div>*/}
+                                                    </div>
+                                                ) : (
+                                                    order.user?.name || 'N/A'
+                                                )}
+                                            </td>
                                             <td className="border p-2">{order.service?.name}</td>
-                                            <td className="border p-2">{order.service?.category}</td>
                                             <td className="border p-2">{order.quantity}</td>
-                                            <td className="border p-2">{order.note || 'N/A'}</td>
                                             <td className="border p-2">{order.total_price}৳</td>
                                             <td className="border p-2">{order.status}</td>
-                                            <td className="border p-2">{order.payment_status}</td>
                                             <td className="border p-2">{new Date(order.created_at).toLocaleString()}</td>
                                             <td className="border p-2 space-x-1">
                                                 <button
@@ -530,9 +632,15 @@ export default function AdminDashboard() {
                         <div className="border-b pb-4 mb-4">
                             <h3 className="text-lg font-semibold mb-2">Customer Information</h3>
                             <div className="text-sm">
-                                <div><strong>Name:</strong> {selectedOrder.user?.name || 'N/A'}</div>
-                                <div><strong>Email:</strong> {selectedOrder.user?.email || 'N/A'}</div>
-                                {(selectedOrder.delivery_address || selectedOrder.user?.addresses?.[0]) && (
+                                <div><strong>Name:</strong> {selectedOrder.guest_name || selectedOrder.user?.name || 'N/A'}</div>
+                                <div><strong>Email:</strong> {selectedOrder.guest_email || selectedOrder.user?.email || 'N/A'}</div>
+                                {selectedOrder.guest_phone && (
+                                    <div><strong>Phone:</strong> {selectedOrder.guest_phone}</div>
+                                )}
+                                {selectedOrder.guest_address && (
+                                    <div><strong>Address:</strong> {selectedOrder.guest_address}</div>
+                                )}
+                                {!selectedOrder.guest_address && (selectedOrder.delivery_address || selectedOrder.user?.addresses?.[0]) && (
                                     <div><strong>Address:</strong> 
                                         <div className="ml-4 mt-1">
                                             {selectedOrder.delivery_address ? (
@@ -643,6 +751,84 @@ export default function AdminDashboard() {
                             </button>
                         </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Service Form Modal */}
+            {showServiceForm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+                    <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold">Add New Service</h2>
+                            <button
+                                onClick={() => setShowServiceForm(false)}
+                                className="text-gray-500 hover:text-gray-700 text-2xl"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <form onSubmit={createService} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Service Name</label>
+                                <input
+                                    type="text"
+                                    value={serviceForm.name}
+                                    onChange={(e) => setServiceForm({...serviceForm, name: e.target.value})}
+                                    className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Price (৳)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={serviceForm.price}
+                                    onChange={(e) => setServiceForm({...serviceForm, price: e.target.value})}
+                                    className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Category</label>
+                                <input
+                                    type="text"
+                                    value={serviceForm.category}
+                                    onChange={(e) => setServiceForm({...serviceForm, category: e.target.value})}
+                                    className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Pricing Method</label>
+                                <select
+                                    value={serviceForm.pricing_method}
+                                    onChange={(e) => setServiceForm({...serviceForm, pricing_method: e.target.value})}
+                                    className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    required
+                                >
+                                    <option value="per_kg">Per KG</option>
+                                    <option value="per_item">Per Item</option>
+                                    <option value="flat_rate">Flat Rate</option>
+                                </select>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowServiceForm(false)}
+                                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                                >
+                                    Create Service
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

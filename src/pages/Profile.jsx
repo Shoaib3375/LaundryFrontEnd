@@ -31,7 +31,7 @@ export default function Profile() {
                 email: res.data.data.user.email
             })
         } catch (error) {
-            alert('Failed to fetch profile')
+            alert('Failed to fetch profile',error)
         }
     }
 
@@ -42,7 +42,7 @@ export default function Profile() {
             alert('Profile updated successfully')
             fetchProfile()
         } catch (error) {
-            alert('Failed to update profile')
+            alert('Failed to update profile',error)
         }
     }
 
@@ -61,7 +61,7 @@ export default function Profile() {
             resetAddressForm()
             fetchProfile()
         } catch (error) {
-            alert('Failed to save address')
+            alert('Failed to save address',error)
         }
     }
 
@@ -72,7 +72,7 @@ export default function Profile() {
             alert('Address deleted successfully')
             fetchProfile()
         } catch (error) {
-            alert('Failed to delete address')
+            alert('Failed to delete address',error)
         }
     }
 
