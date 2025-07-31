@@ -1,4 +1,4 @@
-import React, {useState} from 'react'
+import React, {useState, useEffect} from 'react'
 import {useNavigate, Link} from 'react-router-dom'
 import api from '../api'
 
@@ -6,6 +6,26 @@ export default function Login() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const navigate = useNavigate()
+
+    useEffect(() => {
+        const token = localStorage.getItem('token')
+        if (token) {
+            // Check if user is admin by making a test API call
+            api.get('/user')
+                .then(res => {
+                    const user = res.data.data || res.data
+                    if (user?.is_admin) {
+                        navigate('/admin')
+                    } else {
+                        navigate('/dashboard')
+                    }
+                })
+                .catch(() => {
+                    // Token is invalid, remove it
+                    localStorage.removeItem('token')
+                })
+        }
+    }, [navigate])
 
     const handleLogin = async (e) => {
         e.preventDefault();
