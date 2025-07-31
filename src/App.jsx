@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import Profile from './pages/Profile'
 import RequireAuth from './components/RequireAuth'
 import GuestLanding from './pages/GuestLanding'
 
@@ -29,6 +30,15 @@ function App() {
                     element={
                         <RequireAuth>
                             <AdminDashboard/>
+                        </RequireAuth>
+                    }
+                />
+
+                <Route
+                    path="/profile"
+                    element={
+                        <RequireAuth>
+                            <Profile/>
                         </RequireAuth>
                     }
                 />

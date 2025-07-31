@@ -17,6 +17,8 @@ export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('orders')
     const [revenueData, setRevenueData] = useState(null)
     const [dashboardStats, setDashboardStats] = useState(null)
+    const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+    const [selectedOrder, setSelectedOrder] = useState(null)
 
     const fetchOrders = useCallback(async () => {
         setLoading(true)
@@ -130,6 +132,16 @@ export default function AdminDashboard() {
             setRevenueData(res.data.data);
         } catch (error) {
             alert('Failed to fetch revenue data')
+        }
+    };
+
+    const fetchOrderDetails = async (orderId) => {
+        try {
+            const res = await api.get(`/orders/${orderId}`);
+            setSelectedOrder(res.data.data);
+            setShowInvoiceModal(true);
+        } catch (error) {
+            alert('Failed to fetch order details')
         }
     };
 
@@ -339,24 +351,30 @@ export default function AdminDashboard() {
                                             <td className="border p-2">{order.payment_status}</td>
                                             <td className="border p-2">{new Date(order.created_at).toLocaleString()}</td>
                                             <td className="border p-2 space-x-1">
+                                                <button
+                                                    onClick={() => fetchOrderDetails(order.id)}
+                                                    className="text-white bg-blue-600 hover:bg-blue-800 px-2 py-1 rounded text-xs"
+                                                >
+                                                    Details
+                                                </button>
                                                 {order.status === 'Pending' && (
                                                     <button
                                                         onClick={() => cancelOrder(order.id)}
-                                                        className="text-white bg-red-600 hover:bg-red-800 px-3 py-1 rounded"
+                                                        className="text-white bg-red-600 hover:bg-red-800 px-2 py-1 rounded text-xs"
                                                     >
                                                         Cancel
                                                     </button>
                                                 )}
                                                 <button
                                                     onClick={() => loadLogs(order.id)}
-                                                    className="text-white bg-purple-600 hover:bg-purple-800 px-3 py-1 rounded"
+                                                    className="text-white bg-purple-600 hover:bg-purple-800 px-2 py-1 rounded text-xs"
                                                 >
                                                     Logs
                                                 </button>
                                                 {order.status !== 'Completed' && (
                                                     <button
                                                         onClick={() => updateOrder(order.id)}
-                                                        className="text-green-600 hover:underline"
+                                                        className="text-green-600 hover:underline text-xs"
                                                     >
                                                         Complete
                                                     </button>
@@ -474,6 +492,157 @@ export default function AdminDashboard() {
                         ) : (
                             <p className="text-gray-600">No coupons found.</p>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Invoice Modal */}
+            {showInvoiceModal && selectedOrder && (
+                <div className="fixed inset-0 bg-transparent bg-opacity-50 flex justify-center items-center z-50" onClick={() => setShowInvoiceModal(false)}>
+                    <div className="bg-white rounded shadow-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        <div id="invoice-content">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold">Invoice</h2>
+                            <button onClick={() => setShowInvoiceModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">
+                                ×
+                            </button>
+                        </div>
+                        
+                        <div className="border-b pb-4 mb-4">
+                            <h3 className="text-lg font-semibold mb-2">Order Details</h3>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div><strong>Order ID:</strong> #{selectedOrder.id}</div>
+                                <div><strong>Date:</strong> {new Date(selectedOrder.created_at).toLocaleDateString()}</div>
+                                <div><strong>Status:</strong> 
+                                    <span className={`ml-2 px-2 py-1 rounded text-xs ${
+                                        selectedOrder.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                        selectedOrder.status === 'Processing' ? 'bg-blue-100 text-blue-800' :
+                                        selectedOrder.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-red-100 text-red-800'
+                                    }`}>
+                                        {selectedOrder.status}
+                                    </span>
+                                </div>
+                                <div><strong>Payment:</strong> {selectedOrder.payment_status}</div>
+                            </div>
+                        </div>
+
+                        <div className="border-b pb-4 mb-4">
+                            <h3 className="text-lg font-semibold mb-2">Customer Information</h3>
+                            <div className="text-sm">
+                                <div><strong>Name:</strong> {selectedOrder.user?.name || 'N/A'}</div>
+                                <div><strong>Email:</strong> {selectedOrder.user?.email || 'N/A'}</div>
+                                {(selectedOrder.delivery_address || selectedOrder.user?.addresses?.[0]) && (
+                                    <div><strong>Address:</strong> 
+                                        <div className="ml-4 mt-1">
+                                            {selectedOrder.delivery_address ? (
+                                                <>
+                                                    {selectedOrder.delivery_address.street_address}<br/>
+                                                    {selectedOrder.delivery_address.city}, {selectedOrder.delivery_address.state} {selectedOrder.delivery_address.postal_code}<br/>
+                                                    {selectedOrder.delivery_address.type}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {selectedOrder.user.addresses[0].street_address}<br/>
+                                                    {selectedOrder.user.addresses[0].city}, {selectedOrder.user.addresses[0].state} {selectedOrder.user.addresses[0].postal_code}<br/>
+                                                    {selectedOrder.user.addresses[0].type}
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                            </div>
+                        </div>
+
+
+
+                        <div className="border-b pb-4 mb-4">
+                            <h3 className="text-lg font-semibold mb-2">Service Details</h3>
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="text-left p-2">Service</th>
+                                        <th className="text-left p-2">Category</th>
+                                        <th className="text-left p-2">Quantity</th>
+                                        <th className="text-left p-2">Price</th>
+                                        <th className="text-left p-2">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td className="p-2">{selectedOrder.service?.name}</td>
+                                        <td className="p-2">{selectedOrder.service?.category}</td>
+                                        <td className="p-2">{selectedOrder.quantity}</td>
+                                        <td className="p-2">{selectedOrder.service?.price}৳</td>
+                                        <td className="p-2">{selectedOrder.total_price}৳</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {selectedOrder.note && (
+                            <div className="border-b pb-4 mb-4">
+                                <h3 className="text-lg font-semibold mb-2">Special Instructions</h3>
+                                <p className="text-sm text-gray-600">{selectedOrder.note}</p>
+                            </div>
+                        )}
+
+                        <div className="border-b pb-4 mb-4">
+                            <h3 className="text-lg font-semibold mb-2">Payment Summary</h3>
+                            <div className="text-sm space-y-1">
+                                <div className="flex justify-between">
+                                    <span>Subtotal:</span>
+                                    <span>{selectedOrder.original_price || selectedOrder.total_price}৳</span>
+                                </div>
+                                {selectedOrder.discount_amount && (
+                                    <div className="flex justify-between text-green-600">
+                                        <span>Discount ({selectedOrder.discount_percent}%):</span>
+                                        <span>-{selectedOrder.discount_amount}৳</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between font-bold text-lg border-t pt-2">
+                                    <span>Total:</span>
+                                    <span>{selectedOrder.total_price}৳</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <button 
+                                onClick={() => {
+                                    const printContent = document.getElementById('invoice-content').innerHTML;
+                                    const originalContent = document.body.innerHTML;
+                                    const printStyles = `
+                                        <style>
+                                            @page { size: A5; margin: 10mm; }
+                                            body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.4; }
+                                            .text-2xl { font-size: 18px; }
+                                            .text-lg { font-size: 16px; }
+                                            .text-sm { font-size: 11px; }
+                                            .text-xs { font-size: 10px; }
+                                            table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+                                            th, td { border: 1px solid #ddd; padding: 4px; text-align: left; }
+                                            .border-b { border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 8px; }
+                                        </style>
+                                    `;
+                                    document.body.innerHTML = printStyles + printContent;
+                                    window.print();
+                                    document.body.innerHTML = originalContent;
+                                    window.location.reload();
+                                }}
+                                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mr-2"
+                            >
+                                Print Invoice
+                            </button>
+                            <button 
+                                onClick={() => setShowInvoiceModal(false)}
+                                className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        </div>
                     </div>
                 </div>
             )}
