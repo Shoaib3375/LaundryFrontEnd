@@ -9,6 +9,7 @@ const LaundryLandingPage = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [services, setServices] = useState([]);
     const [showOrderForm, setShowOrderForm] = useState(false);
+    const [orderStep, setOrderStep] = useState(1);
     const [selectedServices, setSelectedServices] = useState([{ service_id: '', quantity: '' }]);
     const [formData, setFormData] = useState({
         guest_name: '',
@@ -34,6 +35,21 @@ const LaundryLandingPage = () => {
             updated[index][field] = value;
             return updated;
         });
+    };
+
+    const handleNextStep = () => {
+        const validServices = selectedServices.filter(s => s.service_id && s.quantity && parseFloat(s.quantity) > 0);
+        
+        if (validServices.length === 0) {
+            alert('Please add at least one service with quantity');
+            return;
+        }
+        
+        setOrderStep(2);
+    };
+
+    const handleBackStep = () => {
+        setOrderStep(1);
     };
 
     useEffect(() => {
@@ -96,6 +112,7 @@ const LaundryLandingPage = () => {
                 note: ''
             });
             setShowOrderForm(false);
+            setOrderStep(1);
         } catch (error) {
             if (error.response?.data?.errors) {
                 setErrors(error.response.data.errors);
@@ -228,7 +245,10 @@ const LaundryLandingPage = () => {
                        className="block px-3 py-2 text-gray-700 hover:text-blue-600">Order Now</a>
                     <a href="#pricing" className="block px-3 py-2 text-gray-700 hover:text-blue-600">Pricing</a>
                     <button
-                        onClick={() => setShowOrderForm(true)}
+                        onClick={() => {
+                            setShowOrderForm(true);
+                            setOrderStep(1);
+                        }}
                         className="w-full mt-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-full">
                         Order Now
                     </button>
@@ -254,7 +274,10 @@ const LaundryLandingPage = () => {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <button
-                            onClick={() => setShowOrderForm(true)}
+                            onClick={() => {
+                                setShowOrderForm(true);
+                                setOrderStep(1);
+                            }}
                             className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2">
                             <ShoppingCart className="w-5 h-5" />
                             Order Now
@@ -304,183 +327,261 @@ const LaundryLandingPage = () => {
         {/* Guest Order Form Modal */}
         {showOrderForm && (
             <div className="fixed inset-0 bg-transparent bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                    <div className="p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">Place Your Order</h2>
+                <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-t-2xl">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-2xl font-bold text-white flex items-center">
+                                <ShoppingCart className="w-6 h-6 mr-3" />
+                                {orderStep === 1 ? 'Select Services' : 'Contact Information'}
+                                <span className="ml-3 text-sm bg-white/20 px-2 py-1 rounded-full">
+                                    Step {orderStep} of 2
+                                </span>
+                            </h2>
                             <button
-                                onClick={() => setShowOrderForm(false)}
-                                className="text-gray-500 hover:text-gray-700"
+                                onClick={() => {
+                                    setShowOrderForm(false);
+                                    setOrderStep(1);
+                                }}
+                                className="text-white hover:text-gray-200 transition-colors"
                             >
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
+                    </div>
 
-                        <form onSubmit={handleOrderSubmit} className="space-y-6">
-                            {/* Services Section */}
-                            <div>
-                                <label className="block text-lg font-semibold text-gray-800 mb-4">Select Services</label>
-                                
-                                <div className="space-y-3">
-                                    {selectedServices.map((service, index) => (
-                                        <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                                            <div className="flex gap-3 items-center">
-                                                <div className="flex-1">
-                                                    <select
-                                                        value={service.service_id}
-                                                        onChange={e => updateService(index, 'service_id', e.target.value)}
-                                                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                        required
-                                                    >
-                                                        <option value="">Choose a service...</option>
-                                                        {Array.isArray(services) && services.length > 0 ? services.map(s => (
-                                                            <option key={s.id} value={s.id}>
-                                                                {s.name} - ৳{s.price} ({s.category})
-                                                            </option>
-                                                        )) : (
-                                                            <option disabled>No services available</option>
-                                                        )}
-                                                    </select>
+                    <div className="p-6">
+                        {orderStep === 1 ? (
+                            // Step 1: Service Selection
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                                        <Package className="w-5 h-5 mr-2 text-blue-600" />
+                                        Select Services
+                                    </label>
+                                    
+                                    <div className="space-y-3">
+                                        {selectedServices.map((service, index) => (
+                                            <div key={index} className="bg-gray-50 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                                                <div className="flex gap-3 items-center">
+                                                    <div className="flex-1">
+                                                        <select
+                                                            value={service.service_id}
+                                                            onChange={e => updateService(index, 'service_id', e.target.value)}
+                                                            className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                                            required
+                                                        >
+                                                            <option value="">Choose a service...</option>
+                                                            {Array.isArray(services) && services.length > 0 ? services.map(s => (
+                                                                <option key={s.id} value={s.id}>
+                                                                    {s.name} - ৳{s.price} ({s.category})
+                                                                </option>
+                                                            )) : (
+                                                                <option disabled>No services available</option>
+                                                            )}
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div className="w-24">
+                                                        <input
+                                                            type="number"
+                                                            step="0.1"
+                                                            min="0.1"
+                                                            placeholder="Qty"
+                                                            value={service.quantity}
+                                                            onChange={e => updateService(index, 'quantity', e.target.value)}
+                                                            className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-sm"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    
+                                                    {selectedServices.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeService(index)}
+                                                            className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                 </div>
-                                                
-                                                <div className="w-32">
-                                                    <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        min="0.1"
-                                                        placeholder="Qty"
-                                                        value={service.quantity}
-                                                        onChange={e => updateService(index, 'quantity', e.target.value)}
-                                                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
-                                                        required
-                                                    />
-                                                </div>
-                                                
-                                                {selectedServices.length > 1 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeService(index)}
-                                                        className="p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                                                    >
-                                                        <X className="w-5 h-5" />
-                                                    </button>
-                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    <button
+                                        type="button"
+                                        onClick={addService}
+                                        className="mt-3 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center space-x-2 text-sm"
+                                    >
+                                        <Package className="w-4 h-4" />
+                                        <span>Add Service</span>
+                                    </button>
+                                </div>
+
+                                {/* Service Summary */}
+                                {selectedServices.some(s => s.service_id && s.quantity) && (
+                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+                                        <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                                            <CheckCircle className="w-5 h-5 mr-2 text-blue-600" />
+                                            Selected Services
+                                        </h3>
+                                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                                            {selectedServices.map((service, index) => {
+                                                const serviceData = services.find(s => s.id == service.service_id);
+                                                if (!serviceData || !service.quantity) return null;
+                                                return (
+                                                    <div key={index} className="flex justify-between items-center text-sm bg-white p-2 rounded-lg">
+                                                        <span className="text-gray-700">{serviceData.name} x {service.quantity}</span>
+                                                        <span className="font-semibold text-gray-800">{(serviceData.price * service.quantity).toFixed(2)}৳</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t border-blue-200 flex justify-between text-lg font-bold text-gray-800">
+                                            <span>Total:</span>
+                                            <span className="text-blue-600">{totalPrice.toFixed(2)}৳</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-4 pt-4 border-t border-gray-200">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowOrderForm(false);
+                                            setOrderStep(1);
+                                        }}
+                                        className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleNextStep}
+                                        className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-medium flex items-center justify-center gap-2"
+                                    >
+                                        Next: Contact Info
+                                        <ArrowRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            // Step 2: Contact Information
+                            <form onSubmit={handleOrderSubmit} className="space-y-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    {/* Customer Information */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                                            <Users className="w-5 h-5 mr-2 text-green-600" />
+                                            Contact Information
+                                        </h3>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.guest_name}
+                                                    onChange={(e) => setFormData({...formData, guest_name: e.target.value})}
+                                                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                                    required
+                                                />
+                                                {errors.guest_name && <p className="text-red-500 text-xs mt-1">{errors.guest_name[0]}</p>}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                                <input
+                                                    type="tel"
+                                                    value={formData.guest_phone}
+                                                    onChange={(e) => setFormData({...formData, guest_phone: e.target.value})}
+                                                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                                    required
+                                                />
+                                                {errors.guest_phone && <p className="text-red-500 text-xs mt-1">{errors.guest_phone[0]}</p>}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                                <input
+                                                    type="email"
+                                                    value={formData.guest_email}
+                                                    onChange={(e) => setFormData({...formData, guest_email: e.target.value})}
+                                                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                                    required
+                                                />
+                                                {errors.guest_email && <p className="text-red-500 text-xs mt-1">{errors.guest_email[0]}</p>}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                                <textarea
+                                                    value={formData.guest_address}
+                                                    onChange={(e) => setFormData({...formData, guest_address: e.target.value})}
+                                                    rows={2}
+                                                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                                    required
+                                                />
+                                                {errors.guest_address && <p className="text-red-500 text-xs mt-1">{errors.guest_address[0]}</p>}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Special Instructions (Optional)</label>
+                                                <textarea
+                                                    value={formData.note}
+                                                    onChange={(e) => setFormData({...formData, note: e.target.value})}
+                                                    rows={2}
+                                                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                                    placeholder="Any special instructions..."
+                                                />
+                                                {errors.note && <p className="text-red-500 text-xs mt-1">{errors.note[0]}</p>}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                                
-                                <button
-                                    type="button"
-                                    onClick={addService}
-                                    className="mt-4 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center space-x-2"
-                                >
-                                    <Package className="w-5 h-5" />
-                                    <span>Add Another Service</span>
-                                </button>
-                            </div>
-
-                            {/* Order Summary */}
-                            {selectedServices.some(s => s.service_id && s.quantity) && (
-                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Order Summary</h3>
-                                    <div className="space-y-2">
-                                        {selectedServices.map((service, index) => {
-                                            const serviceData = services.find(s => s.id == service.service_id);
-                                            if (!serviceData || !service.quantity) return null;
-                                            return (
-                                                <div key={index} className="flex justify-between items-center text-sm bg-white p-3 rounded-lg">
-                                                    <span className="text-gray-700">{serviceData.name} x {service.quantity}</span>
-                                                    <span className="font-semibold text-gray-800">{(serviceData.price * service.quantity).toFixed(2)}৳</span>
-                                                </div>
-                                            );
-                                        })}
                                     </div>
-                                    <div className="mt-4 pt-4 border-t border-blue-200 flex justify-between text-lg font-bold text-gray-800">
-                                        <span>Total:</span>
-                                        <span className="text-blue-600">{totalPrice.toFixed(2)}৳</span>
+
+                                    {/* Order Summary */}
+                                    <div>
+                                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+                                            <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                                                <CheckCircle className="w-5 h-5 mr-2 text-blue-600" />
+                                                Order Summary
+                                            </h3>
+                                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                                                {selectedServices.map((service, index) => {
+                                                    const serviceData = services.find(s => s.id == service.service_id);
+                                                    if (!serviceData || !service.quantity) return null;
+                                                    return (
+                                                        <div key={index} className="flex justify-between items-center text-sm bg-white p-2 rounded-lg">
+                                                            <span className="text-gray-700">{serviceData.name} x {service.quantity}</span>
+                                                            <span className="font-semibold text-gray-800">{(serviceData.price * service.quantity).toFixed(2)}৳</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="mt-3 pt-3 border-t border-blue-200 flex justify-between text-lg font-bold text-gray-800">
+                                                <span>Total:</span>
+                                                <span className="text-blue-600">{totalPrice.toFixed(2)}৳</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            )}
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                                    <input
-                                        type="text"
-                                        value={formData.guest_name}
-                                        onChange={(e) => setFormData({...formData, guest_name: e.target.value})}
-                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        required
-                                    />
-                                    {errors.guest_name && <p className="text-red-500 text-sm mt-1">{errors.guest_name[0]}</p>}
+                                <div className="flex gap-4 pt-4 border-t border-gray-200">
+                                    <button
+                                        type="button"
+                                        onClick={handleBackStep}
+                                        className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                                    >
+                                        Back to Services
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-medium"
+                                    >
+                                        Place Order
+                                    </button>
                                 </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                                    <input
-                                        type="tel"
-                                        value={formData.guest_phone}
-                                        onChange={(e) => setFormData({...formData, guest_phone: e.target.value})}
-                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        required
-                                    />
-                                    {errors.guest_phone && <p className="text-red-500 text-sm mt-1">{errors.guest_phone[0]}</p>}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                                <input
-                                    type="email"
-                                    value={formData.guest_email}
-                                    onChange={(e) => setFormData({...formData, guest_email: e.target.value})}
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    required
-                                />
-                                {errors.guest_email && <p className="text-red-500 text-sm mt-1">{errors.guest_email[0]}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                                <textarea
-                                    value={formData.guest_address}
-                                    onChange={(e) => setFormData({...formData, guest_address: e.target.value})}
-                                    rows={3}
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    required
-                                />
-                                {errors.guest_address && <p className="text-red-500 text-sm mt-1">{errors.guest_address[0]}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Special Instructions (Optional)</label>
-                                <textarea
-                                    value={formData.note}
-                                    onChange={(e) => setFormData({...formData, note: e.target.value})}
-                                    rows={2}
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Any special instructions for your order..."
-                                />
-                                {errors.note && <p className="text-red-500 text-sm mt-1">{errors.note[0]}</p>}
-                            </div>
-
-                            <div className="flex gap-4 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowOrderForm(false)}
-                                    className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-300"
-                                >
-                                    Place Order
-                                </button>
-                            </div>
-                        </form>
+                            </form>
+                        )}
                     </div>
                 </div>
             </div>
@@ -526,7 +627,10 @@ const LaundryLandingPage = () => {
                     Quick and easy ordering - no account required. Get your laundry picked up and delivered.
                 </p>
                 <button
-                    onClick={() => setShowOrderForm(true)}
+                    onClick={() => {
+                        setShowOrderForm(true);
+                        setOrderStep(1);
+                    }}
                     className="bg-white text-blue-600 px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 mx-auto"
                 >
                     <ShoppingCart className="w-5 h-5" />

@@ -10,6 +10,7 @@ const Dashboard = () => {
     const [showNotifications, setShowNotifications] = useState(false)
     const [form, setForm] = useState({ note: '', coupon_code: '', delivery_address_id: '' })
     const [selectedServices, setSelectedServices] = useState([{ service_id: '', quantity: 1 }])
+    const [orderStep, setOrderStep] = useState(1)
     const [addresses, setAddresses] = useState([])
     const [couponStatus, setCouponStatus] = useState(null)
     const [discountedPrice, setDiscountedPrice] = useState(0)
@@ -103,7 +104,10 @@ const Dashboard = () => {
 
     }, [fetchOrders, user])
 
-    const toggleForm = () => setShowForm(!showForm)
+    const toggleForm = () => {
+        setActiveTab('create-order')
+        setOrderStep(1)
+    }
 
     const handleInputChange = (e) => {
         const { name, value } = e.target
@@ -124,6 +128,21 @@ const Dashboard = () => {
             updated[index][field] = value
             return updated
         })
+    }
+
+    const handleNextStep = () => {
+        const validServices = selectedServices.filter(s => s.service_id && s.quantity && parseFloat(s.quantity) > 0)
+        
+        if (validServices.length === 0) {
+            alert('Please add at least one service with quantity')
+            return
+        }
+        
+        setOrderStep(2)
+    }
+
+    const handleBackStep = () => {
+        setOrderStep(1)
     }
 
     const createOrder = async (e) => {
@@ -166,7 +185,8 @@ const Dashboard = () => {
             
             if (res.status === 200 || res.status === 201 || res.data.success) {
                 alert('Order created successfully!')
-                setShowForm(false)
+                setActiveTab('orders')
+                setOrderStep(1)
                 setForm({ note: '', coupon_code: '', delivery_address_id: '' })
                 setSelectedServices([{ service_id: '', quantity: 1 }])
                 setCouponStatus(null)
@@ -364,12 +384,12 @@ const Dashboard = () => {
                     
                     <button 
                         onClick={toggleForm} 
-                        className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center space-x-3 ${showForm ? 'bg-green-100 text-green-700' : 'hover:bg-gray-100 text-gray-700'}`}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center space-x-3 ${activeTab === 'create-order' ? 'bg-green-600 text-white shadow-lg' : 'hover:bg-gray-100 text-gray-700'}`}
                     >
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"></path>
                         </svg>
-                        <span>{showForm ? 'Hide Order Form' : 'Create New Order'}</span>
+                        <span>Create New Order</span>
                     </button>
                     
                     <button 
@@ -460,8 +480,8 @@ const Dashboard = () => {
                 </div>
 
                 {/* Create Order Form */}
-                {showForm && (
-                    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 mb-8 overflow-hidden">
+                {activeTab === 'create-order' && (
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 mb-8 overflow-hidden max-w-2xl mx-auto">
                         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
                             <h2 className="text-2xl font-bold text-white flex items-center">
                                 <svg className="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 20 20">
@@ -472,196 +492,266 @@ const Dashboard = () => {
                             <p className="text-blue-100 mt-1">Select services and quantities for your laundry order</p>
                         </div>
                         
-                        <form className="p-6" onSubmit={createOrder}>
-                        
-                            {/* Services Section */}
-                            <div className="mb-6">
-                                <label className="block text-lg font-semibold text-gray-800 mb-4">Select Services</label>
-                                
-                                <div className="space-y-3">
-                                    {selectedServices.map((service, index) => (
-                                        <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200 hover:border-blue-300 transition-colors">
-                                            <div className="flex gap-3 items-center">
-                                                <div className="flex-1">
-                                                    <select
-                                                        value={service.service_id}
-                                                        onChange={e => updateService(index, 'service_id', e.target.value)}
-                                                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                                        required
-                                                    >
-                                                        <option value="">Choose a service...</option>
-                                                        {services.map(s => (
-                                                            <option key={s.id} value={s.id}>
-                                                                {s.name} - {s.price}৳ ({s.category})
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                                
-                                                <div className="w-32">
-                                                    <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        min="0.1"
-                                                        placeholder="Qty"
-                                                        value={service.quantity}
-                                                        onChange={e => updateService(index, 'quantity', e.target.value)}
-                                                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-center"
-                                                        required
-                                                    />
-                                                </div>
-                                                
-                                                {selectedServices.length > 1 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeService(index)}
-                                                        className="p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                                                        title="Remove service"
-                                                    >
-                                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path>
-                                                        </svg>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
+                        <div className="p-6">
+                            {/* Step Indicator */}
+                            <div className="flex items-center justify-center mb-8">
+                                <div className="flex items-center space-x-4">
+                                    <div className={`flex items-center justify-center w-10 h-10 rounded-full ${orderStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                                        1
+                                    </div>
+                                    <div className={`w-16 h-1 ${orderStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+                                    <div className={`flex items-center justify-center w-10 h-10 rounded-full ${orderStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                                        2
+                                    </div>
                                 </div>
-                                
-                                <button
-                                    type="button"
-                                    onClick={addService}
-                                    className="mt-4 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center space-x-2 shadow-lg"
-                                >
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"></path>
-                                    </svg>
-                                    <span>Add Another Service</span>
-                                </button>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {orderStep === 1 ? (
+                                /* Step 1: Services */
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Delivery Address</label>
-                                    <select
-                                        name="delivery_address_id"
-                                        value={form.delivery_address_id}
-                                        onChange={handleInputChange}
-                                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                        required
-                                    >
-                                        <option value="">Choose delivery address...</option>
-                                        {addresses.map(addr => (
-                                            <option key={addr.id} value={addr.id}>
-                                                {addr.type}: {addr.street_address}, {addr.city}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Coupon Code (Optional)</label>
-                                    <div className="flex space-x-2">
-                                        <input
-                                            type="text"
-                                            name="coupon_code"
-                                            value={form.coupon_code}
-                                            onChange={handleInputChange}
-                                            className="flex-1 border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                            placeholder="Enter coupon code"
-                                        />
+                                    <h3 className="text-xl font-semibold text-gray-800 mb-6">Step 1: Select Services</h3>
+                                    
+                                    <div className="mb-6">
+                                        <label className="block text-lg font-semibold text-gray-800 mb-4">Select Services</label>
+                                        
+                                        <div className="space-y-3">
+                                            {selectedServices.map((service, index) => (
+                                                <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200 hover:border-blue-300 transition-colors">
+                                                    <div className="flex gap-3 items-center">
+                                                        <div className="flex-1">
+                                                            <select
+                                                                value={service.service_id}
+                                                                onChange={e => updateService(index, 'service_id', e.target.value)}
+                                                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                                                required
+                                                            >
+                                                                <option value="">Choose a service...</option>
+                                                                {services.map(s => (
+                                                                    <option key={s.id} value={s.id}>
+                                                                        {s.name} - {s.price}৳ ({s.category})
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        
+                                                        <div className="w-32">
+                                                            <input
+                                                                type="number"
+                                                                step="0.1"
+                                                                min="0.1"
+                                                                placeholder="Qty"
+                                                                value={service.quantity}
+                                                                onChange={e => updateService(index, 'quantity', e.target.value)}
+                                                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-center"
+                                                                required
+                                                            />
+                                                        </div>
+                                                        
+                                                        {selectedServices.length > 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeService(index)}
+                                                                className="p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                                                                title="Remove service"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path>
+                                                                </svg>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        
                                         <button
                                             type="button"
-                                            onClick={validateCoupon}
-                                            className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-lg"
+                                            onClick={addService}
+                                            className="mt-4 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center space-x-2 shadow-lg"
                                         >
-                                            Apply
+                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"></path>
+                                            </svg>
+                                            <span>Add Another Service</span>
                                         </button>
                                     </div>
-                                    {couponStatus && (
-                                        <div className={`mt-2 p-2 rounded-lg text-sm ${couponStatus.valid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {couponStatus.message}
+
+                                    {/* Services Summary */}
+                                    {selectedServices.some(s => s.service_id && s.quantity) && (
+                                        <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Selected Services</h3>
+                                            <div className="space-y-2">
+                                                {selectedServices.map((service, index) => {
+                                                    const serviceData = services.find(s => s.id == service.service_id)
+                                                    if (!serviceData || !service.quantity) return null
+                                                    return (
+                                                        <div key={index} className="flex justify-between items-center text-sm bg-white p-3 rounded-lg">
+                                                            <span className="text-gray-700">{serviceData.name} x {service.quantity}</span>
+                                                            <span className="font-semibold text-gray-800">{(serviceData.price * service.quantity).toFixed(2)}৳</span>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                            <div className="mt-4 pt-4 border-t border-blue-200">
+                                                <div className="flex justify-between text-lg font-bold text-gray-800">
+                                                    <span>Subtotal:</span>
+                                                    <span className="text-blue-600">{totalPrice.toFixed(2)}৳</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
-                                </div>
-                                
-                                <div className="lg:col-span-2">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Special Instructions (Optional)</label>
-                                    <textarea
-                                        name="note"
-                                        value={form.note}
-                                        onChange={handleInputChange}
-                                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                        rows={3}
-                                        placeholder="Any special instructions for your order..."
-                                    />
-                                </div>
-                            </div>
-                        
-                            {/* Order Summary */}
-                            {selectedServices.some(s => s.service_id && s.quantity) && (
-                                <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                                        <svg className="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                        Order Summary
-                                    </h3>
-                                    <div className="space-y-2">
-                                        {selectedServices.map((service, index) => {
-                                            const serviceData = services.find(s => s.id == service.service_id)
-                                            if (!serviceData || !service.quantity) return null
-                                            return (
-                                                <div key={index} className="flex justify-between items-center text-sm bg-white p-3 rounded-lg">
-                                                    <span className="text-gray-700">{serviceData.name} x {service.quantity}</span>
-                                                    <span className="font-semibold text-gray-800">{(serviceData.price * service.quantity).toFixed(2)}৳</span>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
                                     
-                                    <div className="mt-4 pt-4 border-t border-blue-200">
-                                        {couponStatus?.valid ? (
-                                            <div className="space-y-2">
-                                                <div className="flex justify-between text-sm text-gray-600">
-                                                    <span>Subtotal:</span>
-                                                    <span className="line-through">{totalPrice.toFixed(2)}৳</span>
+                                    <div className="mt-8 flex justify-end">
+                                        <button 
+                                            type="button"
+                                            onClick={handleNextStep}
+                                            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2 text-lg font-semibold"
+                                        >
+                                            <span>Next</span>
+                                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                /* Step 2: Address, Coupon, Instructions */
+                                <form onSubmit={createOrder}>
+                                    <h3 className="text-xl font-semibold text-gray-800 mb-6">Step 2: Delivery Details</h3>
+                                    
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Delivery Address</label>
+                                            <select
+                                                name="delivery_address_id"
+                                                value={form.delivery_address_id}
+                                                onChange={handleInputChange}
+                                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                                required
+                                            >
+                                                <option value="">Choose delivery address...</option>
+                                                {addresses.map(addr => (
+                                                    <option key={addr.id} value={addr.id}>
+                                                        {addr.type}: {addr.street_address}, {addr.city}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Coupon Code (Optional)</label>
+                                            <div className="flex space-x-2">
+                                                <input
+                                                    type="text"
+                                                    name="coupon_code"
+                                                    value={form.coupon_code}
+                                                    onChange={handleInputChange}
+                                                    className="flex-1 border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                                    placeholder="Enter coupon code"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={validateCoupon}
+                                                    className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-lg"
+                                                >
+                                                    Apply
+                                                </button>
+                                            </div>
+                                            {couponStatus && (
+                                                <div className={`mt-2 p-2 rounded-lg text-sm ${couponStatus.valid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {couponStatus.message}
                                                 </div>
-                                                <div className="flex justify-between text-sm text-green-600">
-                                                    <span>Discount:</span>
-                                                    <span>-{(totalPrice - discountedPrice).toFixed(2)}৳</span>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="lg:col-span-2">
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Special Instructions (Optional)</label>
+                                            <textarea
+                                                name="note"
+                                                value={form.note}
+                                                onChange={handleInputChange}
+                                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                                rows={3}
+                                                placeholder="Any special instructions for your order..."
+                                            />
+                                        </div>
+                                    </div>
+                                
+                                    {/* Final Order Summary */}
+                                    <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                            <svg className="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Order Summary
+                                        </h3>
+                                        <div className="space-y-2">
+                                            {selectedServices.map((service, index) => {
+                                                const serviceData = services.find(s => s.id == service.service_id)
+                                                if (!serviceData || !service.quantity) return null
+                                                return (
+                                                    <div key={index} className="flex justify-between items-center text-sm bg-white p-3 rounded-lg">
+                                                        <span className="text-gray-700">{serviceData.name} x {service.quantity}</span>
+                                                        <span className="font-semibold text-gray-800">{(serviceData.price * service.quantity).toFixed(2)}৳</span>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                        
+                                        <div className="mt-4 pt-4 border-t border-blue-200">
+                                            {couponStatus?.valid ? (
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between text-sm text-gray-600">
+                                                        <span>Subtotal:</span>
+                                                        <span className="line-through">{totalPrice.toFixed(2)}৳</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-sm text-green-600">
+                                                        <span>Discount:</span>
+                                                        <span>-{(totalPrice - discountedPrice).toFixed(2)}৳</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-lg font-bold text-gray-800">
+                                                        <span>Total:</span>
+                                                        <span className="text-blue-600">{discountedPrice.toFixed(2)}৳</span>
+                                                    </div>
                                                 </div>
+                                            ) : (
                                                 <div className="flex justify-between text-lg font-bold text-gray-800">
                                                     <span>Total:</span>
-                                                    <span className="text-blue-600">{discountedPrice.toFixed(2)}৳</span>
+                                                    <span className="text-blue-600">{totalPrice.toFixed(2)}৳</span>
                                                 </div>
-                                            </div>
-                                        ) : (
-                                            <div className="flex justify-between text-lg font-bold text-gray-800">
-                                                <span>Total:</span>
-                                                <span className="text-blue-600">{totalPrice.toFixed(2)}৳</span>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                    
+                                    <div className="mt-8 flex justify-between">
+                                        <button 
+                                            type="button"
+                                            onClick={handleBackStep}
+                                            className="bg-gray-500 text-white px-8 py-4 rounded-xl hover:bg-gray-600 transition-all duration-200 shadow-lg flex items-center space-x-2 text-lg font-semibold"
+                                        >
+                                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd"></path>
+                                            </svg>
+                                            <span>Back</span>
+                                        </button>
+                                        
+                                        <button 
+                                            type="submit" 
+                                            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2 text-lg font-semibold"
+                                        >
+                                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
+                                            </svg>
+                                            <span>Place Order</span>
+                                        </button>
+                                    </div>
+                                </form>
                             )}
-                            
-                            <div className="mt-8 flex justify-end">
-                                <button 
-                                    type="submit" 
-                                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2 text-lg font-semibold"
-                                >
-                                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
-                                    </svg>
-                                    <span>Place Order</span>
-                                </button>
-                            </div>
-                        </form>
+                        </div>
                     </div>
                 )}
 
-                {activeTab === 'orders' ? (
+                {activeTab === 'orders' && (
                     <>
                         {/* Orders Header */}
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
@@ -815,90 +905,108 @@ const Dashboard = () => {
                     )}
                 </div>
                     </>
-                ) : (
-                    /* Profile Section */
-                    <div>
-                        <h1 className="text-2xl font-semibold mb-6">Profile Settings</h1>
+                )}
 
-                        {/* Profile Form */}
-                        <div className="bg-white p-6 rounded shadow mb-6">
-                            <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
-                            <form onSubmit={updateProfile} className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Name</label>
-                                    <input
-                                        type="text"
-                                        value={profileForm.name}
-                                        onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
-                                        className="w-full border p-2 rounded"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Email</label>
-                                    <input
-                                        type="email"
-                                        value={profileForm.email}
-                                        onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
-                                        className="w-full border p-2 rounded"
-                                        required
-                                    />
-                                </div>
-                                <div className="col-span-2">
-                                    <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                {activeTab === 'profile' && (
+                    <div className="max-w-4xl mx-auto">
+                        <h1 className="text-2xl font-bold text-gray-800 mb-6">Profile & Settings</h1>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Profile Form */}
+                            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                    <svg className="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
+                                    </svg>
+                                    Personal Information
+                                </h2>
+                                <form onSubmit={updateProfile} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                        <input
+                                            type="text"
+                                            value={profileForm.name}
+                                            onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                                            className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                        <input
+                                            type="email"
+                                            value={profileForm.email}
+                                            onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
+                                            className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                            required
+                                        />
+                                    </div>
+                                    <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-medium">
                                         Update Profile
                                     </button>
-                                </div>
-                            </form>
-                        </div>
-
-                        {/* Addresses */}
-                        <div className="bg-white p-6 rounded shadow">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-lg font-semibold">Delivery Addresses</h2>
-                                <button
-                                    onClick={() => setShowAddressForm(true)}
-                                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                                >
-                                    Add Address
-                                </button>
+                                </form>
                             </div>
 
-                            {addresses.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {addresses.map(address => (
-                                        <div key={address.id} className="border p-4 rounded">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <span className="font-medium capitalize">{address.type}</span>
-                                                {address.is_default && (
-                                                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Default</span>
-                                                )}
-                                            </div>
-                                            <p className="text-sm text-gray-600 mb-3">
-                                                {address.street_address}<br/>
-                                                {address.city}, {address.state} {address.postal_code}<br/>
-                                                {address.country}
-                                            </p>
-                                            <div className="flex space-x-2">
-                                                <button
-                                                    onClick={() => editAddress(address)}
-                                                    className="text-blue-600 hover:underline text-sm"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => deleteAddress(address.id)}
-                                                    className="text-red-600 hover:underline text-sm"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                            {/* Addresses */}
+                            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                                        <svg className="w-5 h-5 mr-2 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"></path>
+                                        </svg>
+                                        Delivery Addresses
+                                    </h2>
+                                    <button
+                                        onClick={() => setShowAddressForm(true)}
+                                        className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 text-sm font-medium flex items-center space-x-1"
+                                    >
+                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"></path>
+                                        </svg>
+                                        <span>Add</span>
+                                    </button>
                                 </div>
-                            ) : (
-                                <p className="text-gray-600">No addresses added yet.</p>
-                            )}
+
+                                <div className="space-y-3 max-h-80 overflow-y-auto">
+                                    {addresses.length > 0 ? (
+                                        addresses.map(address => (
+                                            <div key={address.id} className="border border-gray-200 p-3 rounded-lg hover:border-blue-300 transition-colors">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="font-medium capitalize text-gray-800">{address.type}</span>
+                                                    {address.is_default && (
+                                                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">Default</span>
+                                                    )}
+                                                </div>
+                                                <p className="text-sm text-gray-600 mb-2 leading-relaxed">
+                                                    {address.street_address}<br/>
+                                                    {address.city}, {address.state} {address.postal_code}
+                                                </p>
+                                                <div className="flex space-x-3">
+                                                    <button
+                                                        onClick={() => editAddress(address)}
+                                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => deleteAddress(address.id)}
+                                                        className="text-red-600 hover:text-red-800 text-sm font-medium transition-colors"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"></path>
+                                            </svg>
+                                            <p>No addresses added yet</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
