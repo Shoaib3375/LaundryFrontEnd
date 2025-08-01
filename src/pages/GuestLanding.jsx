@@ -9,9 +9,8 @@ const LaundryLandingPage = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [services, setServices] = useState([]);
     const [showOrderForm, setShowOrderForm] = useState(false);
+    const [selectedServices, setSelectedServices] = useState([{ service_id: '', quantity: '' }]);
     const [formData, setFormData] = useState({
-        service_id: '',
-        quantity: 1,
         guest_name: '',
         guest_email: '',
         guest_phone: '',
@@ -20,6 +19,22 @@ const LaundryLandingPage = () => {
     });
     const [orderSuccess, setOrderSuccess] = useState(null);
     const [errors, setErrors] = useState({});
+
+    const addService = () => {
+        setSelectedServices(prev => [...prev, { service_id: '', quantity: '' }]);
+    };
+
+    const removeService = (index) => {
+        setSelectedServices(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const updateService = (index, field, value) => {
+        setSelectedServices(prev => {
+            const updated = [...prev];
+            updated[index][field] = value;
+            return updated;
+        });
+    };
 
     useEffect(() => {
         // Create a request without auth token for public services
@@ -42,12 +57,38 @@ const LaundryLandingPage = () => {
         e.preventDefault();
         setErrors({});
         
+        const validServices = selectedServices.filter(s => s.service_id && s.quantity && parseFloat(s.quantity) > 0);
+        
+        if (validServices.length === 0) {
+            alert('Please add at least one service with quantity');
+            return;
+        }
+
+        const servicesArray = validServices.map(s => {
+            const service = services.find(srv => srv.id == s.service_id);
+            const quantity = parseFloat(s.quantity);
+            const unitPrice = parseFloat(service?.price) || 0;
+            const totalPrice = unitPrice * quantity;
+            
+            return {
+                service_id: parseInt(s.service_id),
+                quantity: quantity,
+                unit_price: unitPrice,
+                total_price: totalPrice
+            };
+        });
+
+        const payload = {
+            services: servicesArray,
+            total_price: totalPrice,
+            ...formData
+        };
+        
         try {
-            const response = await api.post('/guest/orders', formData);
+            const response = await api.post('/guest-order', payload);
             setOrderSuccess(response.data.data);
+            setSelectedServices([{ service_id: '', quantity: '' }]);
             setFormData({
-                service_id: '',
-                quantity: 1,
                 guest_name: '',
                 guest_email: '',
                 guest_phone: '',
@@ -62,8 +103,12 @@ const LaundryLandingPage = () => {
         }
     };
 
-    const selectedService = Array.isArray(services) ? services.find(s => s.id == formData.service_id) : null;
-    const totalPrice = selectedService ? (selectedService.price * formData.quantity).toFixed(2) : '0.00';
+    const totalPrice = selectedServices.reduce((sum, s) => {
+        const service = services.find(srv => srv.id == s.service_id);
+        const quantity = parseFloat(s.quantity) || 0;
+        const price = parseFloat(service?.price) || 0;
+        return sum + (price * quantity);
+    }, 0);
 
     const features = [{
         icon: <Package className="w-8 h-8 text-blue-600"/>,
@@ -271,46 +316,89 @@ const LaundryLandingPage = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleOrderSubmit} className="space-y-4">
+                        <form onSubmit={handleOrderSubmit} className="space-y-6">
+                            {/* Services Section */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Service</label>
-                                <select
-                                    value={formData.service_id}
-                                    onChange={(e) => setFormData({...formData, service_id: e.target.value})}
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    required
+                                <label className="block text-lg font-semibold text-gray-800 mb-4">Select Services</label>
+                                
+                                <div className="space-y-3">
+                                    {selectedServices.map((service, index) => (
+                                        <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                            <div className="flex gap-3 items-center">
+                                                <div className="flex-1">
+                                                    <select
+                                                        value={service.service_id}
+                                                        onChange={e => updateService(index, 'service_id', e.target.value)}
+                                                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        required
+                                                    >
+                                                        <option value="">Choose a service...</option>
+                                                        {Array.isArray(services) && services.length > 0 ? services.map(s => (
+                                                            <option key={s.id} value={s.id}>
+                                                                {s.name} - ৳{s.price} ({s.category})
+                                                            </option>
+                                                        )) : (
+                                                            <option disabled>No services available</option>
+                                                        )}
+                                                    </select>
+                                                </div>
+                                                
+                                                <div className="w-32">
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        min="0.1"
+                                                        placeholder="Qty"
+                                                        value={service.quantity}
+                                                        onChange={e => updateService(index, 'quantity', e.target.value)}
+                                                        className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                                                        required
+                                                    />
+                                                </div>
+                                                
+                                                {selectedServices.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeService(index)}
+                                                        className="p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                                                    >
+                                                        <X className="w-5 h-5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                <button
+                                    type="button"
+                                    onClick={addService}
+                                    className="mt-4 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center space-x-2"
                                 >
-                                    <option value="">Select a service</option>
-                                    {Array.isArray(services) && services.length > 0 ? services.map(service => (
-                                        <option key={service.id} value={service.id}>
-                                            {service.name} - ৳{service.price}
-                                        </option>
-                                    )) : (
-                                        <option disabled>No services available</option>
-                                    )}
-                                </select>
-                                {errors.service_id && <p className="text-red-500 text-sm mt-1">{errors.service_id[0]}</p>}
+                                    <Package className="w-5 h-5" />
+                                    <span>Add Another Service</span>
+                                </button>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Quantity (kg)</label>
-                                <input
-                                    type="number"
-                                    step="0.1"
-                                    min="0.1"
-                                    value={formData.quantity}
-                                    onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    required
-                                />
-                                {errors.quantity && <p className="text-red-500 text-sm mt-1">{errors.quantity[0]}</p>}
-                            </div>
-
-                            {selectedService && (
-                                <div className="bg-blue-50 p-4 rounded-lg">
-                                    <div className="flex justify-between items-center">
-                                        <span className="font-medium">Total Price:</span>
-                                        <span className="text-xl font-bold text-blue-600">৳{totalPrice}</span>
+                            {/* Order Summary */}
+                            {selectedServices.some(s => s.service_id && s.quantity) && (
+                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Order Summary</h3>
+                                    <div className="space-y-2">
+                                        {selectedServices.map((service, index) => {
+                                            const serviceData = services.find(s => s.id == service.service_id);
+                                            if (!serviceData || !service.quantity) return null;
+                                            return (
+                                                <div key={index} className="flex justify-between items-center text-sm bg-white p-3 rounded-lg">
+                                                    <span className="text-gray-700">{serviceData.name} x {service.quantity}</span>
+                                                    <span className="font-semibold text-gray-800">{(serviceData.price * service.quantity).toFixed(2)}৳</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-blue-200 flex justify-between text-lg font-bold text-gray-800">
+                                        <span>Total:</span>
+                                        <span className="text-blue-600">{totalPrice.toFixed(2)}৳</span>
                                     </div>
                                 </div>
                             )}
