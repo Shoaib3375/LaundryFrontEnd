@@ -781,7 +781,7 @@ export default function AdminDashboard() {
 
             {/* Service Form Modal */}
             {showServiceForm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+                <div className="fixed inset-0 bg-transparent bg-opacity-50 flex justify-center items-center z-50">
                     <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-semibold">Add New Service</h2>
