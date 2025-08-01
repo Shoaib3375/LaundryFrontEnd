@@ -424,9 +424,9 @@ export default function AdminDashboard() {
                                 <table className="w-full border-collapse border text-sm">
                                     <thead>
                                     <tr className="bg-gray-200 text-gray-700">
+                                        <th className="border p-2">Order ID</th>
                                         <th className="border p-2">Customer</th>
-                                        <th className="border p-2">Service</th>
-                                        <th className="border p-2">Qty</th>
+                                        <th className="border p-2">Services</th>
                                         <th className="border p-2">Total</th>
                                         <th className="border p-2">Status</th>
                                         <th className="border p-2">Date</th>
@@ -436,6 +436,7 @@ export default function AdminDashboard() {
                                     <tbody>
                                     {orders.map((order) => (
                                         <tr key={order.id} className="hover:bg-gray-100">
+                                            <td className="border p-2">#{order.id}</td>
                                             <td className="border p-2">
                                                 {order.guest_name ? (
                                                     <div>
@@ -447,8 +448,19 @@ export default function AdminDashboard() {
                                                     order.user?.name || 'N/A'
                                                 )}
                                             </td>
-                                            <td className="border p-2">{order.service?.name}</td>
-                                            <td className="border p-2">{order.quantity}</td>
+                                            <td className="border p-2">
+                                                {order.order_items?.length > 0 ? (
+                                                    <div>
+                                                        {order.order_items.map((item, index) => (
+                                                            <div key={index} className="mb-1 text-xs">
+                                                                {item.service?.name} x {item.quantity}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span>{order.service?.name} x {order.quantity}</span>
+                                                )}
+                                            </td>
                                             <td className="border p-2">{order.total_price}৳</td>
                                             <td className="border p-2">{order.status}</td>
                                             <td className="border p-2">{new Date(order.created_at).toLocaleString()}</td>
@@ -673,18 +685,30 @@ export default function AdminDashboard() {
                                         <th className="text-left p-2">Service</th>
                                         <th className="text-left p-2">Category</th>
                                         <th className="text-left p-2">Quantity</th>
-                                        <th className="text-left p-2">Price</th>
+                                        <th className="text-left p-2">Unit Price</th>
                                         <th className="text-left p-2">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td className="p-2">{selectedOrder.service?.name}</td>
-                                        <td className="p-2">{selectedOrder.service?.category}</td>
-                                        <td className="p-2">{selectedOrder.quantity}</td>
-                                        <td className="p-2">{selectedOrder.service?.price}৳</td>
-                                        <td className="p-2">{selectedOrder.total_price}৳</td>
-                                    </tr>
+                                    {selectedOrder.order_items?.length > 0 ? (
+                                        selectedOrder.order_items.map((item, index) => (
+                                            <tr key={index}>
+                                                <td className="p-2">{item.service?.name}</td>
+                                                <td className="p-2">{item.service?.category}</td>
+                                                <td className="p-2">{item.quantity}</td>
+                                                <td className="p-2">{item.service?.price}৳</td>
+                                                <td className="p-2">{(parseFloat(item.service?.price) * parseFloat(item.quantity)).toFixed(2)}৳</td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td className="p-2">{selectedOrder.service?.name}</td>
+                                            <td className="p-2">{selectedOrder.service?.category}</td>
+                                            <td className="p-2">{selectedOrder.quantity}</td>
+                                            <td className="p-2">{selectedOrder.service?.price}৳</td>
+                                            <td className="p-2">{selectedOrder.total_price}৳</td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
