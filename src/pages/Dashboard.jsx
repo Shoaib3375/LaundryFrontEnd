@@ -6,7 +6,7 @@ const Dashboard = () => {
     const [services, setServices] = useState([])
     const [notifications, setNotifications] = useState([])
     const [unreadCount, setUnreadCount] = useState(0)
-    const [showForm, setShowForm] = useState(false)
+
     const [showNotifications, setShowNotifications] = useState(false)
     const [form, setForm] = useState({ note: '', coupon_code: '', delivery_address_id: '' })
     const [selectedServices, setSelectedServices] = useState([{ service_id: '', quantity: 1 }])
@@ -19,6 +19,7 @@ const Dashboard = () => {
 
     const [currentPage, setCurrentPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
+    const [totalOrders, setTotalOrders] = useState(0)
     const [perPage] = useState(10)
     const [activeTab, setActiveTab] = useState('orders')
     const [profile, setProfile] = useState(null)
@@ -36,7 +37,7 @@ const Dashboard = () => {
     })
 
     const user = JSON.parse(localStorage.getItem('user'))
-    const notificationRef = useRef(null)
+
 
     const fetchOrders = useCallback(async () => {
         setLoading(true)
@@ -54,6 +55,7 @@ const Dashboard = () => {
             
             setOrders(res.data.data || [])
             setTotalPages(res.data.pagination?.last_page || 1)
+            setTotalOrders(res.data.pagination?.total || 0)
         } catch (error) {
             console.error('Error fetching orders:', error)
         } finally {
@@ -131,7 +133,7 @@ const Dashboard = () => {
     }
 
     const handleNextStep = () => {
-        const validServices = selectedServices.filter(s => s.service_id && s.quantity && parseFloat(s.quantity) > 0)
+        const validServices = selectedServices.filter(s => s.service_id && s.quantity && parseInt(s.quantity) > 0)
         
         if (validServices.length === 0) {
             alert('Please add at least one service with quantity')
@@ -148,7 +150,7 @@ const Dashboard = () => {
     const createOrder = async (e) => {
         e.preventDefault()
         
-        const validServices = selectedServices.filter(s => s.service_id && s.quantity && parseFloat(s.quantity) > 0)
+        const validServices = selectedServices.filter(s => s.service_id && s.quantity && parseInt(s.quantity) > 0)
         
         if (validServices.length === 0) {
             alert('Please add at least one service with quantity')
@@ -158,7 +160,7 @@ const Dashboard = () => {
         try {
             const servicesArray = validServices.map(s => {
                 const service = services.find(srv => srv.id == s.service_id)
-                const quantity = parseFloat(s.quantity)
+                const quantity = parseInt(s.quantity)
                 const unitPrice = parseFloat(service?.price) || 0
                 const totalPrice = unitPrice * quantity
                 
@@ -263,7 +265,7 @@ const Dashboard = () => {
 
     const totalPrice = selectedServices.reduce((sum, s) => {
         const service = services.find(srv => srv.id == s.service_id)
-        return sum + (service?.price || 0) * parseFloat(s.quantity || 0)
+        return sum + (service?.price || 0) * parseInt(s.quantity || 0)
     }, 0)
     
     // Update discounted price when total price changes
@@ -429,7 +431,7 @@ const Dashboard = () => {
                     </div>
                     
                     {/* Notifications */}
-                    <div className="relative" ref={notificationRef}>
+                    <div className="relative">
                         <button 
                             onClick={() => setShowNotifications(!showNotifications)} 
                             className="relative p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 text-gray-600 hover:text-blue-600"
@@ -537,8 +539,7 @@ const Dashboard = () => {
                                                         <div className="w-32">
                                                             <input
                                                                 type="number"
-                                                                step="0.1"
-                                                                min="0.1"
+                                                                min="1"
                                                                 placeholder="Qty"
                                                                 value={service.quantity}
                                                                 onChange={e => updateService(index, 'quantity', e.target.value)}
@@ -795,7 +796,9 @@ const Dashboard = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
-                                    {orders.map((order) => (
+                                    {orders.map((order, index) => {
+                                        const serialNumber = totalOrders - ((currentPage - 1) * perPage + index)
+                                        return (
                                         <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center">
@@ -805,7 +808,7 @@ const Dashboard = () => {
                                                         </svg>
                                                     </div>
                                                     <div className="ml-4">
-                                                        <div className="text-sm font-semibold text-gray-900">#{order.id}</div>
+                                                        <div className="text-sm font-semibold text-gray-900">#{serialNumber}</div>
                                                         <div className="text-xs text-gray-500">{new Date(order.created_at).toLocaleDateString()}</div>
                                                     </div>
                                                 </div>
@@ -855,7 +858,7 @@ const Dashboard = () => {
                                                 )}
                                             </td>
                                         </tr>
-                                    ))}
+                                    )})}
                                 </tbody>
                             </table>
                         </div>

@@ -544,7 +544,7 @@ export default function AdminDashboard() {
                                         <table className="w-full border-collapse border text-sm">
                                             <thead>
                                             <tr className="bg-gray-200 text-gray-700">
-                                                <th className="border p-2">Admin</th>
+                                                <th className="border p-2">Changed By</th>
                                                 <th className="border p-2">Old Status</th>
                                                 <th className="border p-2">New Status</th>
                                                 <th className="border p-2">Date</th>

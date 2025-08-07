@@ -38,7 +38,7 @@ const LaundryLandingPage = () => {
     };
 
     const handleNextStep = () => {
-        const validServices = selectedServices.filter(s => s.service_id && s.quantity && parseFloat(s.quantity) > 0);
+        const validServices = selectedServices.filter(s => s.service_id && s.quantity && parseInt(s.quantity) > 0);
         
         if (validServices.length === 0) {
             alert('Please add at least one service with quantity');
@@ -73,7 +73,7 @@ const LaundryLandingPage = () => {
         e.preventDefault();
         setErrors({});
         
-        const validServices = selectedServices.filter(s => s.service_id && s.quantity && parseFloat(s.quantity) > 0);
+        const validServices = selectedServices.filter(s => s.service_id && s.quantity && parseInt(s.quantity) > 0);
         
         if (validServices.length === 0) {
             alert('Please add at least one service with quantity');
@@ -82,7 +82,7 @@ const LaundryLandingPage = () => {
 
         const servicesArray = validServices.map(s => {
             const service = services.find(srv => srv.id == s.service_id);
-            const quantity = parseFloat(s.quantity);
+            const quantity = parseInt(s.quantity);
             const unitPrice = parseFloat(service?.price) || 0;
             const totalPrice = unitPrice * quantity;
             
@@ -122,7 +122,7 @@ const LaundryLandingPage = () => {
 
     const totalPrice = selectedServices.reduce((sum, s) => {
         const service = services.find(srv => srv.id == s.service_id);
-        const quantity = parseFloat(s.quantity) || 0;
+        const quantity = parseInt(s.quantity) || 0;
         const price = parseFloat(service?.price) || 0;
         return sum + (price * quantity);
     }, 0);
@@ -384,8 +384,7 @@ const LaundryLandingPage = () => {
                                                     <div className="w-24">
                                                         <input
                                                             type="number"
-                                                            step="0.1"
-                                                            min="0.1"
+                                                            min="1"
                                                             placeholder="Qty"
                                                             value={service.quantity}
                                                             onChange={e => updateService(index, 'quantity', e.target.value)}
