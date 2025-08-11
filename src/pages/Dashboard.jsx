@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import api from '../api'
 
 const Dashboard = () => {
@@ -39,7 +39,7 @@ const Dashboard = () => {
     const user = JSON.parse(localStorage.getItem('user'))
 
 
-    const fetchOrders = useCallback(async () => {
+    const fetchOrders = async () => {
         setLoading(true)
         try {
             const params = new URLSearchParams({
@@ -61,7 +61,7 @@ const Dashboard = () => {
         } finally {
             setLoading(false)
         }
-    }, [statusFilter, currentPage, perPage])
+    }
 
     const fetchNotifications = async () => {
         try {
@@ -100,11 +100,13 @@ const Dashboard = () => {
 
     useEffect(() => {
         fetchOrders()
+    }, [statusFilter, currentPage, perPage])
+
+    useEffect(() => {
         api.get('/services').then(res => setServices(res.data.data || []))
         fetchProfile()
         fetchNotifications()
-
-    }, [fetchOrders, user])
+    }, [])
 
     const toggleForm = () => {
         setActiveTab('create-order')
