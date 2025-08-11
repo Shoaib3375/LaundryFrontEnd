@@ -1,0 +1,165 @@
+@page {
+    size: A4;
+    margin: 15mm;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    
+    #invoice-content,
+    #invoice-content * {
+        visibility: visible;
+    }
+    
+    #invoice-content {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        line-height: 1.3;
+        page-break-after: avoid;
+    }
+    
+    .fixed {
+        position: static !important;
+    }
+    
+    .modal-overlay {
+        display: none !important;
+    }
+    
+    .print\:hidden {
+        display: none !important;
+    }
+    
+    .print\:block {
+        display: block !important;
+    }
+    
+    .print\:static {
+        position: static !important;
+    }
+    
+    .print\:bg-white {
+        background-color: white !important;
+    }
+    
+    .print\:max-w-none {
+        max-width: none !important;
+    }
+    
+    .print\:max-h-none {
+        max-height: none !important;
+    }
+    
+    .print\:overflow-visible {
+        overflow: visible !important;
+    }
+    
+    .print\:shadow-none {
+        box-shadow: none !important;
+    }
+    
+    .print\:rounded-none {
+        border-radius: 0 !important;
+    }
+    
+    .print\:p-4 {
+        padding: 1rem !important;
+    }
+    
+    .text-2xl {
+        font-size: 18px !important;
+        font-weight: bold !important;
+    }
+    
+    .text-lg {
+        font-size: 16px !important;
+        font-weight: 600 !important;
+    }
+    
+    .text-sm {
+        font-size: 11px !important;
+    }
+    
+    .text-xs {
+        font-size: 10px !important;
+    }
+    
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 8px 0 !important;
+    }
+    
+    th, td {
+        border: 1px solid #ddd !important;
+        padding: 4px !important;
+        text-align: left !important;
+    }
+    
+    th {
+        background-color: #f5f5f5 !important;
+        font-weight: bold !important;
+    }
+    
+    .border-b {
+        border-bottom: 1px solid #ddd !important;
+        padding-bottom: 8px !important;
+        margin-bottom: 8px !important;
+    }
+    
+    .grid {
+        display: block !important;
+    }
+    
+    .grid > div {
+        margin-bottom: 10px !important;
+    }
+    
+    .flex {
+        display: flex !important;
+    }
+    
+    .justify-between {
+        justify-content: space-between !important;
+    }
+    
+    .font-bold {
+        font-weight: bold !important;
+    }
+    
+    .border-t {
+        border-top: 1px solid #ddd !important;
+        padding-top: 8px !important;
+    }
+    
+    .text-green-600 {
+        color: #059669 !important;
+    }
+    
+    /* Prevent page breaks */
+    .border-b {
+        page-break-inside: avoid;
+    }
+    
+    table {
+        page-break-inside: avoid;
+    }
+    
+    /* Hide modal overlay completely */
+    .fixed.inset-0 {
+        position: static !important;
+        background: transparent !important;
+    }
+    
+    /* Ensure single page */
+    html, body {
+        height: auto !important;
+        overflow: visible !important;
+    }
+}

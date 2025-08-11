@@ -14,6 +14,7 @@ export default function Login() {
             api.get('/user')
                 .then(res => {
                     const user = res.data.data || res.data
+                    localStorage.setItem('user', JSON.stringify(user))
                     if (user?.is_admin) {
                         navigate('/admin')
                     } else {
@@ -36,6 +37,7 @@ export default function Login() {
             const user = res.data.data.user;
 
             localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
 
             alert('Login successful');
 
