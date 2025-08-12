@@ -571,7 +571,7 @@ function AdminDashboard() {
 
                         {/* Status History Modal */}
                         {logOrderId && (
-                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="fixed inset-0 bg-transparent bg-opacity-50 flex items-center justify-center z-50 p-4">
                                 <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden shadow-2xl">
                                     <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 text-white">
                                         <div className="flex justify-between items-center">
@@ -864,7 +864,7 @@ function AdminDashboard() {
                                                                 className={`w-6 rounded-t transition-all duration-700 ${
                                                                     hasRevenue 
                                                                         ? 'bg-gradient-to-t from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700' 
-                                                                        : 'bg-black'
+                                                                        : 'bg-transparent'
                                                                 }`}
                                                                 style={{ height: `${height}%`, minHeight: '4px' }}
                                                             ></div>
@@ -1005,7 +1005,7 @@ function AdminDashboard() {
 
             {/* Invoice Modal */}
             {showInvoiceModal && selectedOrder && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 print:static print:bg-white print:block modal-overlay" onClick={() => setShowInvoiceModal(false)}>
+                <div className="fixed inset-0 bg-transparent bg-opacity-50 flex justify-center items-center z-50 print:static print:bg-white print:block modal-overlay" onClick={() => setShowInvoiceModal(false)}>
                     <div className="bg-white rounded shadow-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto print:max-w-none print:max-h-none print:overflow-visible print:shadow-none print:rounded-none print:p-0 print:m-0" onClick={(e) => e.stopPropagation()}>
                         <div id="invoice-content" className="print:block">
                             <div className="flex justify-between items-center mb-6 print:block">
@@ -1155,7 +1155,7 @@ function AdminDashboard() {
 
             {/* Coupon Form Modal */}
             {showCouponForm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-transparent bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                         <CreateCouponForm 
                             onClose={() => setShowCouponForm(false)}
@@ -1170,7 +1170,7 @@ function AdminDashboard() {
 
             {/* Coupon List Modal */}
             {showCouponList && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-transparent bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-4">
@@ -1190,36 +1190,22 @@ function AdminDashboard() {
                                         <thead>
                                             <tr className="bg-gray-100">
                                                 <th className="border border-gray-300 px-4 py-2 text-left">Code</th>
-                                                <th className="border border-gray-300 px-4 py-2 text-left">Type</th>
                                                 <th className="border border-gray-300 px-4 py-2 text-left">Value</th>
-                                                <th className="border border-gray-300 px-4 py-2 text-left">Min Amount</th>
-                                                <th className="border border-gray-300 px-4 py-2 text-left">Usage Limit</th>
-                                                <th className="border border-gray-300 px-4 py-2 text-left">Used</th>
                                                 <th className="border border-gray-300 px-4 py-2 text-left">Expires</th>
-                                                <th className="border border-gray-300 px-4 py-2 text-left">Status</th>
+
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {coupons.map((coupon) => (
                                                 <tr key={coupon.id}>
                                                     <td className="border border-gray-300 px-4 py-2 font-mono">{coupon.code}</td>
-                                                    <td className="border border-gray-300 px-4 py-2">{coupon.type}</td>
                                                     <td className="border border-gray-300 px-4 py-2">
-                                                        {coupon.type === 'percentage' ? `${coupon.value}%` : `৳${coupon.value}`}
+                                                        {coupon.type === 'percentage' ? `${coupon.discount_percent}%` : `${coupon.discount_percent}%`}
                                                     </td>
-                                                    <td className="border border-gray-300 px-4 py-2">৳{coupon.min_amount || 0}</td>
-                                                    <td className="border border-gray-300 px-4 py-2">{coupon.usage_limit || 'Unlimited'}</td>
-                                                    <td className="border border-gray-300 px-4 py-2">{coupon.used_count || 0}</td>
                                                     <td className="border border-gray-300 px-4 py-2">
                                                         {coupon.expires_at ? new Date(coupon.expires_at).toLocaleDateString() : 'Never'}
                                                     </td>
-                                                    <td className="border border-gray-300 px-4 py-2">
-                                                        <span className={`px-2 py-1 rounded text-xs ${
-                                                            coupon.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                                        }`}>
-                                                            {coupon.is_active ? 'Active' : 'Inactive'}
-                                                        </span>
-                                                    </td>
+
                                                 </tr>
                                             ))}
                                         </tbody>
