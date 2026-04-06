@@ -1,145 +1,109 @@
-# 🧺 LaundryFrontEnd
+# 🧺 Laundry Hub - Frontend
 
-A modern, full-featured **Laundry Management System** frontend built with React and Vite. The application supports both customer-facing features and a powerful admin dashboard for managing orders, services, coupons, and revenue analytics.
-
----
-
-## 🚀 Tech Stack
-
-| Technology | Purpose |
-|---|---|
-| **React 19** | UI framework |
-| **Vite 7** | Build tool & dev server |
-| **Tailwind CSS 4** | Utility-first styling |
-| **React Router DOM 7** | Client-side routing |
-| **TanStack React Query 5** | Server state management & data fetching |
-| **Axios** | HTTP client for API communication |
-| **@react-pdf/renderer** | PDF invoice generation |
-| **Lucide React** | Icon library |
+A modern, high-performance laundry service management system built with **React 19** and **Vite**. This application provides a seamless experience for both customers and administrators to track and manage laundry orders.
 
 ---
 
 ## ✨ Features
 
-### 👤 Customer Side
-- Browse available laundry services
-- Place and track orders
-- Apply coupon codes for discounts
-- View order status history
+### 👤 Customer Features
+- **Modern Landing Page**: High-conversion landing page for guest users.
+- **Order Tracking**: Real-time tracking of laundry orders.
+- **Service Browsing**: Elegant display of available services and pricing.
+- **Profile Management**: Manage user settings and delivery addresses.
+- **Dashboard**: Centralized view of current and past orders.
 
-### 🛠️ Admin Dashboard
-- **Orders Management** — view, filter by status, update order status, cancel orders, and export invoices as PDF
-- **Revenue Dashboard** — statistics overview, revenue charts and trends, order status distribution
-- **Services Management** — create and delete laundry services with form validation
-- **Coupon Management** — create and list coupons with validation and status display
-- **Error Boundary** — graceful error handling with user-friendly fallback UI
+### 🔑 Authentication & Security
+- **Secure Login/Signup**: Robust user authentication with Axios-based API communication.
+- **Protected Routes**: Ensuring data privacy for logged-in users.
+- **Admin Access**: Role-based access control for management features.
 
----
+### 🛡 Admin Capabilities
+- **Comprehensive Dashboard**: Overview of all system activities and order statistics.
+- **Order Management**: Update status and manage pending laundry tasks.
+- **User Insights**: Manage and view customer information.
 
-## 📁 Project Structure
-
-```
-LaundryFrontEnd/
-├── public/                  # Static assets
-├── src/
-│   ├── components/          # Reusable UI components
-│   │   └── ErrorBoundary.jsx
-│   ├── pages/               # Route-level page components
-│   │   └── AdminDashboard.jsx
-│   └── main.jsx             # App entry point
-├── .env                     # Environment variables (not committed)
-├── .env.example             # Environment variable template
-├── index.html
-├── package.json
-├── tailwind.config.js
-├── vite.config.js
-└── README.md
-```
+### ⚡ Technical Highlights
+- **Real-time Updates**: Live notifications and order status changes using **Laravel Echo** and **Pusher**.
+- **Modern Styling**: Styled with **Tailwind CSS v4** for a premium, responsive look.
+- **Optimized Data Fetching**: Efficient state management and caching using **TanStack React Query v5**.
+- **Responsive Design**: Mobile-first approach for all screens.
 
 ---
 
-## ⚙️ Getting Started
+## 🛠 Tech Stack
+
+- **Core**: [React 19](https://react.dev/), [Vite](https://vitejs.dev/)
+- **Routing**: [React Router v7](https://reactrouter.com/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **State Management**: [TanStack React Query v5](https://tanstack.com/query/latest)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Real-time**: [Laravel Echo](https://laravel.com/docs/broadcasting), [Pusher JS](https://pusher.com/)
+- **HTTP Client**: [Axios](https://axios-http.com/)
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- **Node.js** v18 or higher
-- **npm** or **yarn**
+- [Node.js](https://nodejs.org/) (v18.0 or higher recommended)
+- [NPM](https://www.npmjs.com/) or [Yarn](https://yarnpkg.com/)
+- Access to the corresponding [Laravel Backend API](https://github.com/Shoaib3375/LaundryManagementSystem)
 
 ### Installation
 
-1. **Clone the repository**
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/Shoaib3375/LaundryFrontEnd.git
    cd LaundryFrontEnd
    ```
 
-2. **Install dependencies**
+2. **Install dependencies:**
    ```bash
    npm install
    ```
 
-3. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   Open `.env` and set your backend API base URL:
+3. **Configure Environment Variables:**
+   Create a `.env` file in the root directory and add your API and Pusher credentials:
    ```env
-   VITE_API_BASE_URL=http://localhost:8000/api
+   VITE_API_BASE_URL=http://your-backend-api.com/api
+   VITE_PUSHER_APP_KEY=your-pusher-key
+   VITE_PUSHER_APP_CLUSTER=ap2
    ```
 
-4. **Start the development server**
+4. **Start the development server:**
    ```bash
    npm run dev
    ```
-   The app will be available at `http://localhost:5173`.
 
 ---
 
-## 📜 Available Scripts
+## 📦 Available Scripts
 
-| Script | Description |
-|---|---|
-| `npm run dev` | Start the Vite development server with HMR |
-| `npm run build` | Build the project for production |
-| `npm run preview` | Preview the production build locally |
-| `npm run lint` | Run ESLint for code quality checks |
-
----
-
-## 🔐 Environment Variables
-
-| Variable | Description |
-|---|---|
-| `VITE_API_BASE_URL` | Base URL of the backend REST API |
-
-> **Note:** Never commit your `.env` file. Use `.env.example` as a template.
-
----
-
-## 🏗️ Build for Production
-
-```bash
-npm run build
-```
-
-The optimized output will be in the `dist/` folder, ready for deployment to any static hosting service (Netlify, Vercel, etc.).
+- `npm run dev`: Starts the development server with HMR.
+- `npm run build`: Bundles the application for production.
+- `npm run lint`: Runs ESLint to check for code quality issues.
+- `npm run preview`: Previews the production-ready build locally.
 
 ---
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -m 'Add your feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
 ---
 
 ## 📄 License
 
-This project is private and not currently licensed for public use.
+Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-> Built with ❤️ using React + Vite
+Developed with ❤️ by [Shoaib](https://github.com/Shoaib3375)
